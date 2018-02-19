@@ -1,11 +1,15 @@
 from invoke import Collection
 
 from chops import tasks_definitions
-from chops.build_config import get_build_config
+from chops.config import get_config
+from chops.plugin import register_plugin_tasks
 
-# Obtain build config
-config = get_build_config()
+# Obtain config
+config = get_config()
 
-
+# Create namespace and register tasks
 ns = Collection.from_module(tasks_definitions)
+register_plugin_tasks(ns, config)
+
+# Configure namespace
 ns.configure(config)

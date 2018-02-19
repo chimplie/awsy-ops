@@ -2,6 +2,7 @@ import os
 import pprint
 
 from chops import utils
+from chops import plugin
 
 
 def get_chops_settings_path():
@@ -25,7 +26,6 @@ def load_chops_settings(config):
     settings_path = get_chops_settings_path()
 
     if settings_path is not None:
-        config['project_path'] = os.path.dirname(settings_path)
         config['is_initialised'] = True
 
         from importlib.machinery import SourceFileLoader
@@ -43,7 +43,7 @@ def load_chops_settings(config):
     return config
 
 
-def get_build_config():
+def get_config():
     config = dict()
 
     # Print functions
@@ -52,5 +52,8 @@ def get_build_config():
 
     # Load chops settings
     config = load_chops_settings(config)
+
+    # Load plugins
+    plugin.load_plugins(config)
 
     return config

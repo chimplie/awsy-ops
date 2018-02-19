@@ -39,6 +39,7 @@ setup(
     install_requires=[
         'markdown',
         'invoke==0.22.1',
+        'python-dotenv==0.7.1',
     ],
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],

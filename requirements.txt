@@ -1,1 +1,2 @@
 invoke==0.22.1
+python-dotenv==0.7.1

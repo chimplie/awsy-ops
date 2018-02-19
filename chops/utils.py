@@ -2,6 +2,7 @@ import os
 
 
 PACKAGE_PATH = os.path.abspath(os.path.dirname(__file__))
+PLUGINS_PATH = os.path.join(PACKAGE_PATH, 'plugins')
 TEMPLATES_PATH = os.path.join(PACKAGE_PATH, 'templates')
 
 CHOPS_SETTINGS_FILE = 'chops_settings.py'

@@ -102,3 +102,4 @@ ENV/
 
 # chops
 chops_settings.py
+env.template.lock
