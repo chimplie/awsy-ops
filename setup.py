@@ -35,7 +35,7 @@ setup(
     author_email='mikhail.zytain@gmail.com',
     url='https://github.com/chimplie/chimplie-ops',
     license='MIT',
-    packages=['chops'],
+    packages=['chops', 'chops.templates', 'chops.plugins'],
     install_requires=[
         'markdown',
         'invoke==0.22.1',
