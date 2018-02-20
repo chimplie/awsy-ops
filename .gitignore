@@ -101,4 +101,5 @@ ENV/
 .mypy_cache/
 
 # chops
+chops_settings.py
 env.template.lock

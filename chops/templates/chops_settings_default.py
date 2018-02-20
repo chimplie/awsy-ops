@@ -12,7 +12,8 @@ SETTINGS['project_path'] = HERE
 
 
 SETTINGS['loaded_plugins'] = [
-    'chops.plugins.dotenv_plugin',
+    'chops.plugins.dotenv',
+    'chops.plugins.docker',
 ]
 
 
@@ -22,4 +23,10 @@ SETTINGS['dotenv'] = {
     },
     'template': os.path.join(chops.utils.PLUGINS_PATH, 'env.template'),
     'template_lock': os.path.join(SETTINGS['project_path'], 'env.template.lock'),
+}
+
+SETTINGS['docker'] = {
+    'docker_root': os.path.join(SETTINGS['project_path'], 'docker'),
+    'project_name': 'chops' * 3,
+    'repository_prefix': None,
 }
