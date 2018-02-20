@@ -1,0 +1,36 @@
+version: '3.2'
+
+services:
+  api-server:
+    build:
+      context: ../server/api
+      dockerfile: Dockerfile
+    volumes:
+      - ../server/api:/app
+    command: /app/app.py
+    environment:
+      - API_SERVER_PORT
+    ports:
+      - "${API_SERVER_PORT}:5000"
+    restart: always
+  front-server:
+    build:
+      context: front-server
+      dockerfile: Dockerfile
+    command: nginx -g 'daemon off;'
+    ports:
+      - "${MAIN_APP_PORT}:8080"
+    depends_on:
+      - api-server
+      - user-facing-client
+    restart: always
+  user-facing-client:
+    build:
+      context: ../client/web-app
+      dockerfile: Dockerfile
+    volumes:
+      - ../client/web-app:/app
+    command: nginx -g 'daemon off;'
+    ports:
+      - "${UF_CLIENT_PORT}:8080"
+    restart: always
