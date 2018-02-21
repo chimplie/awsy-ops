@@ -1,3 +1,3 @@
 include README.rst
 include chops/VERSION
-include chops/plugins/env.template
+include chops/plugins/dotenv/env.template
