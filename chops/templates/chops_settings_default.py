@@ -35,6 +35,9 @@ SETTINGS['plugins'] = [
 
     # Uncomment to use AWS SSM plugin
     # 'chops.plugins.aws.aws_ssm',
+
+    # Uncomment to use AWS Elastic Container Registry plugin
+    # 'chops.plugins.aws.aws_ecr',
 ]
 
 
@@ -50,6 +53,7 @@ SETTINGS['docker'] = {
     'docker_root': os.path.join(SETTINGS['project_path'], 'docker'),
     'project_name': SETTINGS['project_name'],
     'repository_prefix': None,
+    'published_services': [],
 }
 
 SETTINGS['aws'] = {
@@ -67,3 +71,5 @@ SETTINGS['aws_envs'] = {
     },
     'default': 'prod',
 }
+
+SETTINGS['aws_ecr'] = {}

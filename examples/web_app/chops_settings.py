@@ -22,6 +22,7 @@ SETTINGS['plugins'] = [
     'chops.plugins.aws',
     'chops.plugins.aws.aws_envs',
     'chops.plugins.aws.aws_ssm',
+    'chops.plugins.aws.aws_ecr',
 ]
 
 
@@ -37,6 +38,7 @@ SETTINGS['docker'] = {
     'docker_root': os.path.join(SETTINGS['project_path'], 'docker'),
     'project_name': SETTINGS['project_name'],
     'repository_prefix': None,
+    'published_services': ['api-server', 'user-facing-client', 'front-server'],
 }
 
 SETTINGS['aws'] = {
@@ -54,3 +56,5 @@ SETTINGS['aws_envs'] = {
     },
     'default': 'prod',
 }
+
+SETTINGS['aws_ecr'] = {}

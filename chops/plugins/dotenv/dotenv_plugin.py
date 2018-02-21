@@ -10,6 +10,12 @@ import chops.core
 class DotEnvPlugin(chops.core.Plugin):
     name = 'dotenv'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if os.path.isfile(self.config['env_files']['main_dotenv_path']):
+            load_dotenv(self.config['env_files']['main_dotenv_path'])
+
     def install(self):
         dotenv_file_paths = list(self.config['env_files'].values())
         dotenv_file_paths.append(self.config['template_lock'])
@@ -24,8 +30,6 @@ class DotEnvPlugin(chops.core.Plugin):
                 filename=self.config['template']
             ))
             exit(-1)
-
-        load_dotenv(self.config['env_files']['main_dotenv_path'])
 
 
 PLUGIN_CLASS = DotEnvPlugin
