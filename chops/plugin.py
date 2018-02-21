@@ -1,12 +1,11 @@
 import importlib
 import logging
 
-from invoke import Collection
+from invoke import Collection, task
 
 
 class Plugin(object):
     name = 'ChopsPlugin'
-    tasks = []
 
     def __init__(self, config, logger=None):
         if logger is None:
@@ -19,10 +18,30 @@ class Plugin(object):
         pass
 
     def register_tasks(self, ns: Collection):
+        @task
+        def info(ctx):
+            """Describes plugin."""
+            ctx.info('Config for {name} plugin:'.format(name=self.name))
+            ctx.pp.pprint(self.config)
+
+        @task
+        def install(ctx):
+            """Installs plugin."""
+            ctx.info('Installing {name} plugin...'.format(name=self.name))
+            self.install()
+
         plugin_ns = Collection(self.name)
-        for t in self.tasks:
-            plugin_ns.add_task(getattr(self, t))
+
+        plugin_ns.add_task(info)
+        plugin_ns.add_task(install)
+
+        for t in self.get_tasks():
+            plugin_ns.add_task(t)
+
         ns.add_collection(plugin_ns)
+
+    def get_tasks(self):
+        return []
 
 
 def import_plugin(name: str, config: dict) -> Plugin:
@@ -40,7 +59,6 @@ def load_plugins(config: dict):
     for name in config['loaded_plugins']:
         plugin = import_plugin(name, config)
         config['plugins'][plugin.name] = plugin
-        plugin.install()
 
 
 def register_plugin_tasks(ns: Collection, config: dict):

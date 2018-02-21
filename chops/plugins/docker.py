@@ -1,6 +1,6 @@
 import os
 
-from invoke import Collection, task
+from invoke import task
 
 import chops.plugin
 
@@ -10,7 +10,6 @@ PLUGIN_NAME = 'docker'
 
 class DockerPlugin(chops.plugin.Plugin):
     name = PLUGIN_NAME
-    tasks = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -25,13 +24,7 @@ class DockerPlugin(chops.plugin.Plugin):
             args=' '.join(args)
         )
 
-    def register_tasks(self, ns: Collection):
-        @task
-        def info(ctx):
-            """Describes docker management plugin."""
-            ctx.info('Config for docker management plugin:')
-            ctx.pp.pprint(self.config)
-
+    def get_tasks(self):
         @task
         def build(ctx):
             """Builds docker containers."""
@@ -56,15 +49,7 @@ class DockerPlugin(chops.plugin.Plugin):
             ctx.info('Start dockerized application locally in background.')
             ctx.run(self.get_docker_command('up', '-d', '--force-recreate', '--remove-orphans', '--no-build'))
 
-        plugin_ns = Collection(self.name)
-
-        plugin_ns.add_task(info)
-        plugin_ns.add_task(build)
-        plugin_ns.add_task(down)
-        plugin_ns.add_task(up)
-        plugin_ns.add_task(up_d)
-
-        ns.add_collection(plugin_ns)
+        return [build, down, up, up_d]
 
 
 PLUGIN_CLASS = DockerPlugin

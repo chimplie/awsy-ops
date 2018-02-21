@@ -3,7 +3,6 @@ import os
 import shutil
 
 from dotenv import load_dotenv
-from invoke import task
 
 import chops.plugin
 
@@ -13,7 +12,6 @@ PLUGIN_NAME = 'dotenv'
 
 class DotEnvPlugin(chops.plugin.Plugin):
     name = PLUGIN_NAME
-    tasks = ['info']
 
     def install(self):
         dotenv_file_paths = list(self.config['env_files'].values())
@@ -31,14 +29,6 @@ class DotEnvPlugin(chops.plugin.Plugin):
             exit(-1)
 
         load_dotenv(self.config['env_files']['main_dotenv_path'])
-
-    @staticmethod
-    @task
-    def info(ctx):
-        """Describes .env files management plugin."""
-        plugin = ctx.plugins[PLUGIN_NAME]
-        ctx.info('Config for .env file management plugin:')
-        ctx.pp.pprint(plugin.config)
 
 
 PLUGIN_CLASS = DotEnvPlugin
