@@ -2,13 +2,13 @@ import os
 
 from invoke import task
 
-import chops.plugin
+import chops.core
 
 
 PLUGIN_NAME = 'docker'
 
 
-class DockerPlugin(chops.plugin.Plugin):
+class DockerPlugin(chops.core.Plugin):
     name = PLUGIN_NAME
     dependencies = ['dotenv']
 
@@ -17,7 +17,7 @@ class DockerPlugin(chops.plugin.Plugin):
 
         self.config['project_name'] = os.environ.get('COMPOSE_PROJECT_NAME', self.config['project_name'])
         self.config['repository_prefix'] = os.environ.get('DOCKER_REPOSITORY_PREFIX', self.config['repository_prefix'])
-        self.config['tag'] = os.environ.get('DOCKER_TAG')
+        self.config['tag'] = os.environ.get('DOCKER_TAG', self.app.config.get('build_number', 'local'))
 
     def get_docker_command(self, *args: str):
         return 'cd {docker_root} && docker-compose {args}'.format(

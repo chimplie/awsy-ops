@@ -4,13 +4,13 @@ import shutil
 
 from dotenv import load_dotenv
 
-import chops.plugin
+import chops.core
 
 
 PLUGIN_NAME = 'dotenv'
 
 
-class DotEnvPlugin(chops.plugin.Plugin):
+class DotEnvPlugin(chops.core.Plugin):
     name = PLUGIN_NAME
 
     def install(self):

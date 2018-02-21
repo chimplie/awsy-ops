@@ -13,7 +13,12 @@ SETTINGS['project_path'] = HERE
 
 SETTINGS['plugins'] = [
     'chops.plugins.dotenv',
-    'chops.plugins.docker',
+
+    # Uncomment to use Docker plugin
+    # 'chops.plugins.docker',
+
+    # Uncomment to use Travis CI plugin
+    # 'chops.plugins.travis',
 ]
 
 
