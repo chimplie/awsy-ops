@@ -3,11 +3,8 @@ import os
 import chops.core
 
 
-PLUGIN_NAME = 'travis'
-
-
 class TravisPlugin(chops.core.Plugin):
-    name = PLUGIN_NAME
+    name = 'travis'
     dependencies = ['travis']
 
     def __init__(self, *args, **kwargs):

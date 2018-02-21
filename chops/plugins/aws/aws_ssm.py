@@ -3,11 +3,8 @@ from invoke import task
 from chops.plugins.aws.aws_service_plugin import AwsServicePlugin
 
 
-PLUGIN_NAME = 'aws_ssm'
-
-
 class AwsSsmPlugin(AwsServicePlugin):
-    name = PLUGIN_NAME
+    name = 'aws_ssm'
     dependencies = ['aws', 'aws_envs']
     service_name = 'ssm'
     required_keys = ['namespace']

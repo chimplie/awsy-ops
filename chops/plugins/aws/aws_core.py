@@ -3,11 +3,8 @@ import boto3
 import chops.core
 
 
-PLUGIN_NAME = 'aws'
-
-
 class AwsPlugin(chops.core.Plugin):
-    name = PLUGIN_NAME
+    name = 'aws'
     required_keys = ['profile', 'project_name']
 
     def __init__(self, *args, **kwargs):

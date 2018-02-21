@@ -5,11 +5,8 @@ from invoke import task
 import chops.core
 
 
-PLUGIN_NAME = 'docker'
-
-
 class DockerPlugin(chops.core.Plugin):
-    name = PLUGIN_NAME
+    name = 'docker'
     dependencies = ['dotenv']
 
     def __init__(self, *args, **kwargs):

@@ -7,11 +7,8 @@ from dotenv import load_dotenv
 import chops.core
 
 
-PLUGIN_NAME = 'dotenv'
-
-
 class DotEnvPlugin(chops.core.Plugin):
-    name = PLUGIN_NAME
+    name = 'dotenv'
 
     def install(self):
         dotenv_file_paths = list(self.config['env_files'].values())

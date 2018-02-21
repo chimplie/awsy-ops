@@ -4,11 +4,8 @@ import chops.core
 from chops.plugins.aws.aws_core import AwsPlugin
 
 
-PLUGIN_NAME = 'aws_envs'
-
-
 class AwsEnvsPlugin(chops.core.Plugin):
-    name = PLUGIN_NAME
+    name = 'aws_envs'
     dependencies = ['aws', 'dotenv']
     required_keys = ['environments', 'default']
 
