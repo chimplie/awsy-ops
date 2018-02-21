@@ -1,10 +1,7 @@
-from invoke import Collection, Program
-
-from chops import tasks
-from chops import utils
+from chops.core import ChopsApplication
 
 
-program = Program(namespace=Collection.from_module(tasks), version=utils.version())
+program = ChopsApplication().program
 
 
 if __name__ == "__main__":

@@ -49,7 +49,12 @@ class DockerPlugin(chops.plugin.Plugin):
             ctx.info('Start dockerized application locally in background.')
             ctx.run(self.get_docker_command('up', '-d', '--force-recreate', '--remove-orphans', '--no-build'))
 
-        return [build, down, up, up_d]
+        @task
+        def version(ctx):
+            """Retrieves docker-compose version."""
+            ctx.run(self.get_docker_command('--version'))
+
+        return [build, down, up, up_d, version]
 
 
 PLUGIN_CLASS = DockerPlugin

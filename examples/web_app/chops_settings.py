@@ -9,7 +9,7 @@ SETTINGS['project_name'] = 'Chops Project'
 SETTINGS['project_path'] = HERE
 
 
-SETTINGS['loaded_plugins'] = [
+SETTINGS['plugins'] = [
     'chops.plugins.dotenv',
     'chops.plugins.docker',
 ]

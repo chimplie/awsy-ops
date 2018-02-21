@@ -1,12 +1,10 @@
 import os
-import pprint
 
 from chops import utils
-from chops import plugin
 
 
 def get_chops_settings_path():
-    def chop_settings_path(path):
+    def chop_settings_path(path: str):
         return os.path.join(path, utils.CHOPS_SETTINGS_FILE)
 
     path = os.getcwd()
@@ -39,21 +37,5 @@ def load_chops_settings(config):
         settings = SETTINGS
 
     config = {**config, **settings}
-
-    return config
-
-
-def get_config():
-    config = dict()
-
-    # Print functions
-    config['pp'] = pprint.PrettyPrinter(indent=4)
-    config['info'] = lambda x: print('\033[94m' + x + '\033[0m')
-
-    # Load chops settings
-    config = load_chops_settings(config)
-
-    # Load plugins
-    plugin.load_plugins(config)
 
     return config
