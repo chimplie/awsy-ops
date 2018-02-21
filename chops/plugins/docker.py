@@ -10,6 +10,7 @@ PLUGIN_NAME = 'docker'
 
 class DockerPlugin(chops.plugin.Plugin):
     name = PLUGIN_NAME
+    dependencies = ['dotenv']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

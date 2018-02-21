@@ -3,12 +3,16 @@ import logging
 import os
 import pprint
 from shutil import copyfile
-from typing import Dict
+from typing import Dict, List
 
 from invoke import Collection, Program, task
 
 from chops.settings_loader import load_chops_settings
 from chops import utils
+
+
+class MissingPluginDependencyError(RuntimeError):
+    pass
 
 
 class ChopsApplication(object):
@@ -43,6 +47,12 @@ class ChopsApplication(object):
 
         for name in self.config['plugins']:
             plugin = import_plugin(name, self.config, self)
+            for dependency in getattr(plugin, 'dependencies', []):
+                if dependency not in plugins.keys():
+                    raise MissingPluginDependencyError(
+                        'Plugin "{name}" requires dependency "{dependency}" '
+                        'to be loaded before its instantiation.'.format(name=plugin.name, dependency=dependency)
+                    )
             plugins[plugin.name] = plugin
 
         return plugins
@@ -111,6 +121,7 @@ class ChopsApplication(object):
 
 class Plugin(object):
     name = 'ChopsPlugin'
+    dependencies: List[str] = []
 
     def __init__(self, config: dict, app: ChopsApplication, logger=None):
         if logger is None:
