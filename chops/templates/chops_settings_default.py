@@ -7,7 +7,14 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 SETTINGS = dict()
 
 
-SETTINGS['project_name'] = 'Chops Project'
+# Specify project name here:
+SETTINGS['project_name'] = 'chops' * 3
+
+# Add project description:
+SETTINGS['project_description'] = 'Chops Project'
+
+
+# This path will be used as a project root:
 SETTINGS['project_path'] = HERE
 
 
@@ -19,6 +26,15 @@ SETTINGS['plugins'] = [
 
     # Uncomment to use Travis CI plugin
     # 'chops.plugins.travis',
+
+    # Uncomment to use AWS plugin
+    # 'chops.plugins.aws',
+
+    # Uncomment to use AWS Environments plugin
+    # 'chops.plugins.aws.aws_envs',
+
+    # Uncomment to use AWS SSM plugin
+    # 'chops.plugins.aws.aws_ssm',
 ]
 
 
@@ -32,6 +48,22 @@ SETTINGS['dotenv'] = {
 
 SETTINGS['docker'] = {
     'docker_root': os.path.join(SETTINGS['project_path'], 'docker'),
-    'project_name': 'chops' * 3,
+    'project_name': SETTINGS['project_name'],
     'repository_prefix': None,
+}
+
+SETTINGS['aws'] = {
+    'profile': 'specify AWS profile here',
+    'project_name': SETTINGS['project_name'],
+}
+
+SETTINGS['aws_ssm'] = {
+    'namespace': '/{}'.format(SETTINGS['aws']['project_name']),
+}
+
+SETTINGS['aws_envs'] = {
+    'environments': {
+        'prod': {}
+    },
+    'default': 'prod',
 }

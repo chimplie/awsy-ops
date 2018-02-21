@@ -15,11 +15,21 @@ class MissingPluginDependencyError(RuntimeError):
     pass
 
 
+class IncompletePluginConfigError(RuntimeError):
+    pass
+
+
 class ChopsApplication(object):
-    def __init__(self):
+    def __init__(self, logger=None):
         self.version: str = utils.version()
         self.config: dict = self.load_config()
-        self.plugins: Dict[Plugin] = self.load_plugins()
+
+        if logger is None:
+            logger = logging.getLogger(self.config['project_name'])
+
+        self.logger = logger
+        self.plugins: Dict[Plugin] = {}
+        self.load_plugins()
         self.ns: Collection = self.get_root_namespace()
 
         self.register_plugin_tasks()
@@ -30,10 +40,6 @@ class ChopsApplication(object):
     def load_config():
         config = dict()
 
-        # Print functions
-        config['pp'] = pprint.PrettyPrinter(indent=4)
-        config['info'] = lambda x: print('\033[94m' + x + '\033[0m')
-
         # Load chops settings
         config = load_chops_settings(config)
 
@@ -41,21 +47,17 @@ class ChopsApplication(object):
 
     def load_plugins(self):
         if not self.config['is_initialised']:
-            return {}
-
-        plugins = {}
+            return
 
         for name in self.config['plugins']:
             plugin = import_plugin(name, self.config, self)
             for dependency in getattr(plugin, 'dependencies', []):
-                if dependency not in plugins.keys():
+                if dependency not in self.plugins.keys():
                     raise MissingPluginDependencyError(
                         'Plugin "{name}" requires dependency "{dependency}" '
                         'to be loaded before its instantiation.'.format(name=plugin.name, dependency=dependency)
                     )
-            plugins[plugin.name] = plugin
-
-        return plugins
+            self.plugins[plugin.name] = plugin
 
     def register_plugin_tasks(self):
         if not self.config['is_initialised']:
@@ -65,7 +67,14 @@ class ChopsApplication(object):
             plugin.register_tasks(self.ns)
 
     def get_context(self) -> dict():
-        return {**self.config, **{'app': self}}
+        context_extras = {
+            'app': self,
+            'pp': pprint.PrettyPrinter(indent=4),
+            'info': lambda x: print('\033[94m' + x + '\033[0m'),
+            'logger': self.logger,
+        }
+
+        return {**self.config, **context_extras}
 
     def install_plugins(self):
         for plugin in self.plugins.values():
@@ -77,10 +86,23 @@ class ChopsApplication(object):
         def info(ctx):
             """Shows basic info about chops tools."""
             if ctx.is_initialised:
-                ctx.info('Chops (Chimplie Ops) project "{project_name}" at "{project_path}".'.format(
+                ctx.info('Chops (Chimplie Ops) project "{project_name}" at "{project_path}":'.format(
                     project_path=ctx.project_path,
                     project_name=ctx.project_name,
                 ))
+                ctx.pp.pprint(ctx.app.config)
+            else:
+                ctx.info('Chops project is not initialised.')
+
+        @task
+        def plugins_info(ctx):
+            """Shows basic info chops plugins."""
+            if ctx.is_initialised:
+                ctx.info('Plugins for Chops project "{project_name}" at "{project_path}":'.format(
+                    project_path=ctx.project_path,
+                    project_name=ctx.project_name,
+                ))
+                ctx.pp.pprint({k: v.__dict__ for k, v in ctx.app.plugins.items()})
             else:
                 ctx.info('Chops project is not initialised.')
 
@@ -112,6 +134,7 @@ class ChopsApplication(object):
 
         ns = Collection()
         ns.add_task(info)
+        ns.add_task(plugins_info)
         ns.add_task(version)
         ns.add_task(init)
         ns.add_task(install)
@@ -122,10 +145,18 @@ class ChopsApplication(object):
 class Plugin(object):
     name = 'ChopsPlugin'
     dependencies: List[str] = []
+    required_keys = []
 
     def __init__(self, config: dict, app: ChopsApplication, logger=None):
         if logger is None:
             logger = logging.getLogger(self.name)
+
+        for key in self.required_keys:
+            if key not in config:
+                raise IncompletePluginConfigError(
+                    'Key "{key}" is missing in "{name}" plugin config: \n{config}'.format(
+                        key=key, name=self.name, config=config,
+                    ))
 
         self.config = config
         self.app = app

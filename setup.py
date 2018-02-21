@@ -39,10 +39,12 @@ setup(
         'chops',
         'chops.templates',
         'chops.plugins',
+        'chops.plugins.aws',
         'chops.plugins.dotenv',
     ],
     install_requires=[
         'markdown',
+        'boto3==1.5.33',
         'invoke==0.22.1',
         'python-dotenv==0.7.1',
     ],
