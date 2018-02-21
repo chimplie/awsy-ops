@@ -78,7 +78,8 @@ class ChopsApplication(object):
 
     def install_plugins(self):
         for plugin in self.plugins.values():
-            plugin.install()
+            if not plugin.is_installable():
+                plugin.install()
 
     @staticmethod
     def get_root_namespace() -> Collection:
@@ -165,6 +166,9 @@ class Plugin(object):
     def install(self):
         pass
 
+    def is_installable(self):
+        return not getattr(self.install, 'skip', False)
+
     def register_tasks(self, ns: Collection):
         @task
         def info(ctx):
@@ -181,7 +185,8 @@ class Plugin(object):
         plugin_ns = Collection(self.name)
 
         plugin_ns.add_task(info)
-        plugin_ns.add_task(install)
+        if self.is_installable():
+            plugin_ns.add_task(install)
 
         for t in self.get_tasks():
             plugin_ns.add_task(t)
@@ -190,6 +195,10 @@ class Plugin(object):
 
     def get_tasks(self):
         return []
+
+
+# Mark `install` method as skipped which means that plugin is not installable:
+Plugin.install.skip = True
 
 
 def import_plugin(name: str, config: dict, app: ChopsApplication) -> Plugin:
