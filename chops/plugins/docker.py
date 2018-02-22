@@ -53,48 +53,7 @@ class DockerPlugin(chops.core.Plugin):
             """Retrieves docker-compose version."""
             ctx.run(self.get_docker_command('--version'))
 
-        @task
-        def tag(ctx):
-            """Tags Docker images."""
-            ctx.info('Tag Docker images.')
-            for service in self.config['published_services']:
-                for docker_tag in [self.config['tag'], 'latest']:
-                    repo_uri = '{repository_prefix}/{service}'.format(
-                        service=service,
-                        repository_prefix=self.config['repository_prefix'],
-                        tag=docker_tag
-                    )
-                    ctx.info('Tag Docker {service} images with "{repo_uri}:{tag}" tag.'.format(
-                        service=service, repo_uri=repo_uri, tag=docker_tag
-                    ))
-                    ctx.run('docker tag {project_name}_{service}:latest {repo_uri}:{tag}'.format(
-                        service=service,
-                        project_name=self.config['project_name'],
-                        repo_uri=repo_uri,
-                        tag=docker_tag,
-                    ))
-
-        @task
-        def push(ctx):
-            """Pushes Docker images to remote registry."""
-            ctx.info('Push Docker images to remote registry.')
-            for service in self.config['published_services']:
-                for docker_tag in [self.config['tag'], 'latest']:
-                    ctx.info('Push Docker image of {service}:{docker_tag} to remote registry.'.format(
-                        service=service, docker_tag=docker_tag
-                    ))
-                    ctx.run('docker push {repository_prefix}/{service}:{docker_tag}'.format(
-                        service=service,
-                        repository_prefix=ctx.docker.repository_prefix,
-                        docker_tag=docker_tag
-                    ))
-
-        @task(build, tag, push)
-        def release(ctx):
-            """Builds, tags and pushes Docker containers."""
-            pass
-
-        return [build, down, up, up_d, version, tag, push, release]
+        return [build, down, up, up_d, version]
 
 
 PLUGIN_CLASS = DockerPlugin
