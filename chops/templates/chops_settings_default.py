@@ -52,8 +52,6 @@ SETTINGS['dotenv'] = {
 SETTINGS['docker'] = {
     'docker_root': os.path.join(SETTINGS['project_path'], 'docker'),
     'project_name': SETTINGS['project_name'],
-    'repository_prefix': None,
-    'published_services': [],
 }
 
 SETTINGS['aws'] = {
@@ -72,4 +70,6 @@ SETTINGS['aws_envs'] = {
     'default': 'prod',
 }
 
-SETTINGS['aws_ecr'] = {}
+SETTINGS['aws_ecr'] = {
+    'services': [],
+}

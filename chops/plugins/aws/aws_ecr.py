@@ -7,15 +7,16 @@ class AwsEcrPlugin(AwsServicePlugin):
     name = 'aws_ecr'
     dependencies = ['aws', 'docker']
     service_name = 'ecr'
+    required_keys = ['services']
 
     def get_profile(self):
         return self.app.plugins['aws'].config['profile']
 
-    def get_project_name(self):
+    def get_aws_project_name(self):
         return self.app.plugins['aws'].config['project_name']
 
-    def get_published_services(self):
-        return self.app.plugins['docker'].config['published_services']
+    def get_docker_project_name(self):
+        return self.app.plugins['docker'].config['project_name']
 
     def get_docker_tag(self):
         return self.app.plugins['docker'].config['tag']
@@ -23,8 +24,8 @@ class AwsEcrPlugin(AwsServicePlugin):
     def describe_repositories(self):
         repository_names = ['{project_name}/{service_name}'.format(
             service_name=service_name,
-            project_name=self.get_project_name()
-        ) for service_name in self.get_published_services()]
+            project_name=self.get_aws_project_name()
+        ) for service_name in self.config['services']]
 
         response = self.client.describe_repositories(
             repositoryNames=repository_names
@@ -37,7 +38,7 @@ class AwsEcrPlugin(AwsServicePlugin):
 
     def get_service_path(self, service_name):
         return '{project_name}/{service_name}'.format(
-            project_name=self.get_project_name(),
+            project_name=self.get_aws_project_name(),
             service_name=service_name,
         )
 
@@ -45,18 +46,18 @@ class AwsEcrPlugin(AwsServicePlugin):
         @task
         def create(ctx):
             """Creates Docker repositories for all publishable services."""
-            for service_name in self.get_published_services():
+            for service_name in self.config['services']:
                 ctx.info(
                     'Create repository in ECS Docker registry '
                     'for service_name "{service_name}" '
                     'of the "{project_name}" project:'.format(
                         service_name=service_name,
-                        project_name=self.get_project_name()
+                        project_name=self.get_aws_project_name()
                     ))
                 response = self.client.create_repository(
                     repositoryName='{project_name}/{service_name}'.format(
                         service_name=service_name,
-                        project_name=self.get_project_name()
+                        project_name=self.get_aws_project_name()
                     )
                 )
                 ctx.pp.pprint(response)
@@ -65,7 +66,7 @@ class AwsEcrPlugin(AwsServicePlugin):
         def describe(ctx):
             """Describes Docker repositories for all publishable services."""
             ctx.info('Repositories in ECS Docker registry '
-                     'of the "{project_name}" project:'.format(project_name=self.get_project_name()))
+                     'of the "{project_name}" project:'.format(project_name=self.get_aws_project_name()))
             ctx.pp.pprint(self.describe_repositories())
 
         @task
@@ -83,7 +84,7 @@ class AwsEcrPlugin(AwsServicePlugin):
 
             repositories = self.describe_repositories()
 
-            for service_name in self.get_published_services():
+            for service_name in self.config['services']:
                 for docker_tag in [self.get_docker_tag(), 'latest']:
                     service_path = self.get_service_path(service_name)
                     repo_uri = repositories[service_path]['repositoryUri']
@@ -93,7 +94,7 @@ class AwsEcrPlugin(AwsServicePlugin):
                     ))
 
                     ctx.run('docker tag {project_name}_{service_name}:latest {repo_uri}:{tag}'.format(
-                        project_name=self.get_project_name(),
+                        project_name=self.get_docker_project_name(),
                         service_name=service_name,
                         repo_uri=repo_uri,
                         tag=docker_tag,
@@ -106,7 +107,7 @@ class AwsEcrPlugin(AwsServicePlugin):
 
             repositories = self.describe_repositories()
 
-            for service_name in self.get_published_services():
+            for service_name in self.config['services']:
                 for docker_tag in [self.get_docker_tag(), 'latest']:
                     service_path = self.get_service_path(service_name)
                     repo_uri = repositories[service_path]['repositoryUri']

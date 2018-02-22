@@ -3,6 +3,7 @@ import os
 import shutil
 
 from dotenv import load_dotenv
+from invoke import task
 
 import chops.core
 
@@ -30,6 +31,15 @@ class DotEnvPlugin(chops.core.Plugin):
                 filename=self.config['template']
             ))
             exit(-1)
+
+    def get_tasks(self):
+        @task
+        def show_env(ctx):
+            """Prints environment variables."""
+            ctx.info('Print environment variables.')
+            ctx.run('env')
+
+        return [show_env]
 
 
 PLUGIN_CLASS = DotEnvPlugin

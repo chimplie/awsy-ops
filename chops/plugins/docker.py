@@ -8,18 +8,19 @@ import chops.core
 class DockerPlugin(chops.core.Plugin):
     name = 'docker'
     dependencies = ['dotenv']
+    required_keys = ['docker_root', 'project_name']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.config['project_name'] = os.environ.get('COMPOSE_PROJECT_NAME', self.config['project_name'])
-        self.config['repository_prefix'] = os.environ.get('DOCKER_REPOSITORY_PREFIX', self.config['repository_prefix'])
         self.config['tag'] = os.environ.get('DOCKER_TAG', self.app.config.get('build_number', 'local'))
-        self.config['published_services'] = self.config.get('published_services', [])
 
     def get_docker_command(self, *args: str):
-        return 'cd {docker_root} && docker-compose {args}'.format(
+        return 'cd {docker_root} && docker-compose {params} {args}'.format(
             docker_root=self.config['docker_root'],
+            params=' '.join([
+                '--project-name={}'.format(self.config['project_name'])
+            ]),
             args=' '.join(args)
         )
 
