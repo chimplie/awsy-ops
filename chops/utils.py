@@ -6,6 +6,7 @@ PLUGINS_PATH = os.path.join(PACKAGE_PATH, 'plugins')
 TEMPLATES_PATH = os.path.join(PACKAGE_PATH, 'templates')
 
 CHOPS_SETTINGS_FILE = 'chops_settings.py'
+CHOPS_STORE_FILE = 'chops_store.yml'
 
 TEMPLATES = {
     CHOPS_SETTINGS_FILE: os.path.join(TEMPLATES_PATH, 'chops_settings_default.py'),

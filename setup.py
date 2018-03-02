@@ -47,6 +47,7 @@ setup(
         'boto3==1.5.33',
         'invoke==0.22.1',
         'python-dotenv==0.7.1',
+        'PyYaml==3.12',
     ],
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],

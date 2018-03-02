@@ -1,0 +1,2 @@
+aws: {project_id: chopsexamplewebapp-3aa4be46}
+installed_plugins: [dotenv, docker, aws, aws_envs, aws_ssm, aws_ecr]

@@ -8,6 +8,7 @@ from typing import Dict, List
 from invoke import Collection, Program, task
 
 from chops.settings_loader import load_chops_settings
+from chops.store import Store
 from chops import utils
 
 
@@ -26,8 +27,14 @@ class ChopsApplication(object):
 
         if logger is None:
             logger = logging.getLogger(self.config['project_name'])
-
         self.logger = logger
+
+        self.store = Store(
+            os.path.join(self.config['project_path'], utils.CHOPS_STORE_FILE),
+            self.logger
+        )
+        self.init_store()
+
         self.plugins: Dict[Plugin] = {}
         self.load_plugins()
         self.ns: Collection = self.get_root_namespace()
@@ -44,6 +51,9 @@ class ChopsApplication(object):
         config = load_chops_settings(config)
 
         return config
+
+    def init_store(self):
+        self.store.init('installed_plugins', [])
 
     def load_plugins(self):
         if not self.config['is_initialised']:
@@ -66,20 +76,26 @@ class ChopsApplication(object):
         for plugin in self.plugins.values():
             plugin.register_tasks(self.ns)
 
+    @staticmethod
+    def info(x):
+        print('\033[94m' + x + '\033[0m')
+
     def get_context(self) -> dict():
         context_extras = {
             'app': self,
             'pp': pprint.PrettyPrinter(indent=4),
-            'info': lambda x: print('\033[94m' + x + '\033[0m'),
+            'info': self.info,
             'logger': self.logger,
         }
 
         return {**self.config, **context_extras}
 
-    def install_plugins(self):
+    def is_installed(self, plugin):
+        return plugin.name not in self.store.get('installed_plugins')
+
+    def install_plugins(self, force_install=False):
         for plugin in self.plugins.values():
-            if not plugin.is_installable():
-                plugin.install()
+            plugin.install_and_register(force_install)
 
     @staticmethod
     def get_root_namespace() -> Collection:
@@ -128,10 +144,10 @@ class ChopsApplication(object):
                 ))
 
         @task
-        def install(ctx):
+        def install(ctx, force_install=False):
             """Installs chops plugins."""
             ctx.info('Installing chops plugins...')
-            ctx.app.install_plugins()
+            ctx.app.install_plugins(force_install=force_install)
 
         ns = Collection()
         ns.add_task(info)
@@ -166,8 +182,21 @@ class Plugin(object):
     def install(self):
         pass
 
+    def install_and_register(self, force_install=False):
+        if not self.is_installed() or force_install:
+            if self.is_installable():
+                self.app.info('Installing plugin "{}"...'.format(self.name))
+                self.install()
+            self.register()
+
     def is_installable(self):
         return not getattr(self.install, 'skip', False)
+
+    def is_installed(self):
+        return self.app.store.has_item('installed_plugins', self.name)
+
+    def register(self):
+        self.app.store.include('installed_plugins', self.name)
 
     def register_tasks(self, ns: Collection):
         @task
@@ -177,10 +206,10 @@ class Plugin(object):
             ctx.pp.pprint(self.config)
 
         @task
-        def install(ctx):
+        def install(ctx, force_install=False):
             """Installs plugin."""
             ctx.info('Installing {name} plugin...'.format(name=self.name))
-            self.install()
+            self.install_and_register(force_install)
 
         plugin_ns = Collection(self.name)
 
