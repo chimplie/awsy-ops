@@ -1,11 +1,11 @@
 import importlib
-import logging
 import os
 import pprint
 from shutil import copyfile
 from typing import Dict, List
 
 from invoke import Collection, Program, task
+import yaml
 
 from chops.settings_loader import load_chops_settings
 from chops.store import Store
@@ -26,8 +26,9 @@ class ChopsApplication(object):
         self.config: dict = self.load_config()
 
         if logger is None:
-            logger = logging.getLogger(self.config['project_name'])
+            logger = utils.get_logger(self.config['project_name'])
         self.logger = logger
+        self.pp = pprint.PrettyPrinter(indent=2, width=240, compact=True)
 
         self.store = Store(
             os.path.join(self.config['project_path'], utils.CHOPS_STORE_FILE),
@@ -43,6 +44,8 @@ class ChopsApplication(object):
         self.ns.configure(self.get_context())
         self.program = Program(namespace=self.ns, version=self.version)
 
+        self.prepare_paths()
+
     @staticmethod
     def load_config():
         config = dict()
@@ -52,6 +55,10 @@ class ChopsApplication(object):
 
         return config
 
+    def prepare_paths(self):
+        os.makedirs(self.config['build_path'], exist_ok=True)
+        os.makedirs(self.config['log_dir'], exist_ok=True)
+
     def init_store(self):
         self.store.init('installed_plugins', [])
 
@@ -60,7 +67,7 @@ class ChopsApplication(object):
             return
 
         for name in self.config['plugins']:
-            plugin = import_plugin(name, self.config, self)
+            plugin = import_plugin(name, self.config, self, self.logger)
             for dependency in getattr(plugin, 'dependencies', []):
                 if dependency not in self.plugins.keys():
                     raise MissingPluginDependencyError(
@@ -80,10 +87,17 @@ class ChopsApplication(object):
     def info(x):
         print('\033[94m' + x + '\033[0m')
 
+    def format(self, *args, **kwargs):
+        return self.pp.pformat(*args, **kwargs)
+
+    def dump_yml(self, name, obj):
+        with open(os.path.join(self.config['log_dir'], '{}.yml'.format(name)), 'w') as f:
+            yaml.dump(obj, f)
+
     def get_context(self) -> dict():
         context_extras = {
             'app': self,
-            'pp': pprint.PrettyPrinter(indent=4),
+            'pp': self.pp,
             'info': self.info,
             'logger': self.logger,
         }
@@ -166,7 +180,7 @@ class Plugin(object):
 
     def __init__(self, config: dict, app: ChopsApplication, logger=None):
         if logger is None:
-            logger = logging.getLogger(self.name)
+            logger = utils.get_logger(self.name)
 
         for key in self.required_keys:
             if key not in config:
@@ -217,8 +231,9 @@ class Plugin(object):
         if self.is_installable():
             plugin_ns.add_task(install)
 
-        for t in self.get_tasks():
-            plugin_ns.add_task(t)
+        if not self.is_installable() or self.is_installed():
+            for t in self.get_tasks():
+                plugin_ns.add_task(t)
 
         ns.add_collection(plugin_ns)
 
@@ -230,7 +245,7 @@ class Plugin(object):
 Plugin.install.skip = True
 
 
-def import_plugin(name: str, config: dict, app: ChopsApplication) -> Plugin:
+def import_plugin(name: str, config: dict, app: ChopsApplication, logger) -> Plugin:
     mod = importlib.import_module(name)
     plugin_class: Plugin = mod.PLUGIN_CLASS
-    return plugin_class(config[plugin_class.name], app)
+    return plugin_class(config[plugin_class.name], app, logger)

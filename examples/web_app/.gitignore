@@ -1,2 +1,5 @@
 !chops_settings.py
 env.template.lock
+
+.build
+.logs

@@ -1,11 +1,12 @@
 FROM nginx:alpine
 
-EXPOSE 8080
+EXPOSE 80
 
 RUN mkdir /app
 RUN apk update && apk upgrade && apk add bash
-# Copy the current directory contents into the container at /app
-ADD . /app
+
+# Copy the build directory contents into the container at /app
+ADD ./build /app
 
 COPY nginx.conf /etc/nginx/nginx.conf
 

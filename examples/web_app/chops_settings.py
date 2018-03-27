@@ -15,6 +15,12 @@ SETTINGS['project_description'] = 'Example Chops web application'
 # This path will be used as a project root:
 SETTINGS['project_path'] = HERE
 
+# This path will be used for all build stuff:
+SETTINGS['build_path'] = os.path.join(HERE, '.build')
+
+# This path will be used for logs:
+SETTINGS['log_dir'] = os.path.join(HERE, '.logs')
+
 
 SETTINGS['plugins'] = [
     'chops.plugins.dotenv',
@@ -23,6 +29,7 @@ SETTINGS['plugins'] = [
     'chops.plugins.aws.aws_envs',
     'chops.plugins.aws.aws_ssm',
     'chops.plugins.aws.aws_ecr',
+    'chops.plugins.aws.aws_ebt',
 ]
 
 
@@ -56,5 +63,9 @@ SETTINGS['aws_envs'] = {
 }
 
 SETTINGS['aws_ecr'] = {
-    'services': ['api-server', 'user-facing-client', 'front-server'],
+    'services': ['apiserver', 'webclient', 'frontserver'],
+}
+
+SETTINGS['aws_ebt'] = {
+    'app_name': SETTINGS['aws']['project_name'],
 }

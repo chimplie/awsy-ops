@@ -17,6 +17,12 @@ SETTINGS['project_description'] = 'Chops Project'
 # This path will be used as a project root:
 SETTINGS['project_path'] = HERE
 
+# This path will be used for all build stuff:
+SETTINGS['build_path'] = os.path.join(HERE, '.build')
+
+# This path will be used for logs:
+SETTINGS['log_dir'] = os.path.join(HERE, '.logs')
+
 
 SETTINGS['plugins'] = [
     'chops.plugins.dotenv',
@@ -38,6 +44,9 @@ SETTINGS['plugins'] = [
 
     # Uncomment to use AWS Elastic Container Registry plugin
     # 'chops.plugins.aws.aws_ecr',
+
+    # Uncomment to use AWS Elastic Beanstalk plugin
+    # 'chops.plugins.aws.aws_ebt',
 ]
 
 
@@ -72,4 +81,8 @@ SETTINGS['aws_envs'] = {
 
 SETTINGS['aws_ecr'] = {
     'services': [],
+}
+
+SETTINGS['aws_ebt'] = {
+    'app_name': SETTINGS['aws']['project_name'],
 }

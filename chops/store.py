@@ -83,6 +83,19 @@ class Store(object):
 
         self.dump()
 
+    def delete(self, path):
+        """
+        Deletes path from the storage.
+        :param path:
+        :return:
+        """
+        if not self.has(path):
+            raise KeyError('Path "{}" does not belong to storage.'.format(path))
+
+        parts = path.split('.')
+        parent = self.get('.'.join(path[:-1]))
+        del parent[parts[-1]]
+
     def append(self, path, value):
         """
         Appends value to the iterable at the path.
