@@ -22,10 +22,6 @@ class DotEnvPlugin(chops.core.Plugin):
         dotenv_file_paths = list(self.config['env_files'].values())
         dotenv_file_paths.append(self.config['template_lock'])
 
-        template_path = os.path.join(utils.PLUGINS_PATH, self.name, 'env.template')
-        if not os.path.isfile(self.config['template']):
-            shutil.copyfile(template_path, self.config['template'])
-
         for dotenv_path in dotenv_file_paths:
             if not os.path.exists(dotenv_path):
                 self.logger.warning('Creating "{dotenv_path}"...'.format(dotenv_path=dotenv_path))
