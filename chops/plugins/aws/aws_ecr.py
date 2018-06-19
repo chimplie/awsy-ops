@@ -74,7 +74,7 @@ class AwsEcrPlugin(AwsServicePlugin):
             """Performs log-in to remote Docker registry."""
             ctx.info('Login to remote Docker registry '
                      'for "{aws_profile}" AWS profile.'.format(aws_profile=self.get_profile()))
-            ctx.run('`aws ecr get-login --no-include-email --region us-east-1 --profile {aws_profile}`'
+            ctx.run("eval $(aws ecr get-login --no-include-email --profile {aws_profile} | sed 's|https://||')"
                     .format(aws_profile=self.get_profile()))
 
         @task
