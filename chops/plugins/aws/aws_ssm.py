@@ -68,7 +68,8 @@ class AwsSsmPlugin(AwsServicePlugin):
                     param_type = param['Type']
                 except:
                     if description is None:
-                        description = 'UBI Access parameter {name} for "{app_env}" environment'.format(
+                        description = '"{project_name}" parameter "{name}" for "{app_env}" environment'.format(
+                            project_name=self.app.config['project_name'],
                             name=name, app_env=app_env
                         )
 
