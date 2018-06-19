@@ -19,3 +19,12 @@ To use programmatically, simply do:
 import chops
 chops.program.run()
 ```
+
+Development
+-----------
+
+To install development version of the plugin:
+
+```bash
+pip install -e .
+```

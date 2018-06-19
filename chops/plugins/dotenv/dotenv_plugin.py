@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from invoke import task
 
 import chops.core
+from chops import utils
 
 
 class DotEnvPlugin(chops.core.Plugin):
@@ -20,6 +21,10 @@ class DotEnvPlugin(chops.core.Plugin):
     def install(self):
         dotenv_file_paths = list(self.config['env_files'].values())
         dotenv_file_paths.append(self.config['template_lock'])
+
+        template_path = os.path.join(utils.PLUGINS_PATH, self.name, 'env.template')
+        if not os.path.isfile(self.config['template']):
+            shutil.copyfile(template_path, self.config['template'])
 
         for dotenv_path in dotenv_file_paths:
             if not os.path.exists(dotenv_path):
