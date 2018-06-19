@@ -10,7 +10,7 @@ package_path = os.path.join(here, 'chops')
 
 
 def readme():
-    with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
+    with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
         return f.read()
 
 
