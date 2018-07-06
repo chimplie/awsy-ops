@@ -75,21 +75,33 @@ SETTINGS['aws_logs'] = {
 SETTINGS['aws_ecs'] = {
     'cluster_prefix': '{}-'.format(SETTINGS['aws']['project_name']),
     'service_name': '{}-Web'.format(SETTINGS['aws']['project_name']),
-    'task_definition_name': '{}-Web-'.format(SETTINGS['aws']['project_name']),
+    'task_definition_name': '{}-Web'.format(SETTINGS['aws']['project_name']),
+    'environments': {
+        'prod': {
+            'container_overrides': {
+                'apiserver': {
+                    'memory': 500,
+                },
+                'webclient': {
+                    'memory': 300,
+                },
+                'frontserver': {
+                    'memory': 200,
+                }
+            },
+        },
+    },
     'containers': [
         {
             'name': 'apiserver',
-            'memory': 500,
             'essential': True,
         },
         {
             'name': 'webclient',
-            'memory': 300,
             'essential': True,
         },
         {
             'name': 'frontserver',
-            'memory': 200,
             'portMappings': [
                 {
                     'containerPort': 8080,

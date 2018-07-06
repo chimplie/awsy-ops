@@ -15,5 +15,8 @@ class AwsServicePlugin(chops.core.Plugin):
     def get_profile(self):
         return self.app.plugins['aws'].config['profile']
 
+    def get_aws_region(self):
+        return self.app.plugins['aws'].get_aws_region()
+
     def get_aws_project_name(self):
         return self.app.plugins['aws'].config['project_name']

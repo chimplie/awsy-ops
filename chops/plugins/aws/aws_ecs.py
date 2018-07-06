@@ -23,18 +23,30 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         :return: dict[] container definitions
         """
         containers = self.config['containers']
+
+        container_overrides = {}
+        if 'environments' in self.config:
+            env_config = self.config['environments'].get(self.get_current_env(), {})
+            if 'container_overrides' in env_config:
+                container_overrides = env_config['container_overrides']
+
         for container in containers:
             if 'image' not in container:
                 container['image'] = self.get_service_image_uri(container['name'])
 
-            container['logConfiguration'] = {
-                'logDriver': 'awslogs',
-                'options': {
-                    'awslogs-group': self.get_log_group_name(),
-                    'awslogs-region': 'us-east-1',
-                    'awslogs-stream-prefix': 'ecs-local',
+            if 'logConfiguration' not in container:
+                container['logConfiguration'] = {
+                    'logDriver': 'awslogs',
+                    'options': {
+                        'awslogs-group': self.get_log_group_name(),
+                        'awslogs-region': self.get_aws_region(),
+                        'awslogs-stream-prefix': 'ecs-local',
+                    }
                 }
-            }
+
+            if container['name'] in container_overrides:
+                container.update(container_overrides[container['name']])
+
         return containers
 
     def get_cluster_prefix(self):
@@ -211,7 +223,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         if service is not None:
             return service['runningCount']
 
-    def await_service_running_count(self, count, timeout=1, retries=30):
+    def await_service_running_count(self, count, timeout=1, retries=60):
         """
         Awaits service running count became equal to the specified value
         :param count: int how many running instances we want
@@ -255,7 +267,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
             service_name=self.get_service_name(),
         ))
 
-    def await_service_absence(self, timeout=1, retries=30):
+    def await_service_absence(self, timeout=1, retries=60):
         for i in range(retries):
             if not self.service_exists():
                 return True
@@ -351,6 +363,10 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 ))
                 return
 
+            ctx.info('Deleting service {service_name} at {cluster_name}...'.format(
+                service_name=self.get_service_name(),
+                cluster_name=self.get_cluster_name(),
+            ))
             self.stop_service()
 
             if force:
