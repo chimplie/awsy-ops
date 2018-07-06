@@ -45,6 +45,9 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS Elastic Container Registry plugin
     # 'chops.plugins.aws.aws_ecr',
 
+    # Uncomment to use AWS Elastic Container Service plugin
+    # 'chops.plugins.aws.aws_ecs',
+
     # Uncomment to use AWS Elastic Beanstalk plugin
     # 'chops.plugins.aws.aws_ebt',
 ]
@@ -80,6 +83,10 @@ SETTINGS['aws_envs'] = {
 }
 
 SETTINGS['aws_ecr'] = {
+    'services': [],
+}
+
+SETTINGS['aws_ecs'] = {
     'services': [],
 }
 

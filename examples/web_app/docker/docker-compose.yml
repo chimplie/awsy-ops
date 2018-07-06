@@ -19,7 +19,7 @@ services:
       dockerfile: Dockerfile
     command: nginx -g 'daemon off;'
     ports:
-      - "${MAIN_APP_PORT}:80"
+      - "${MAIN_APP_PORT}:8080"
     depends_on:
       - apiserver
       - webclient
@@ -32,5 +32,5 @@ services:
       - ../client/web-app:/app
     command: nginx -g 'daemon off;'
     ports:
-      - "${UF_CLIENT_PORT}:80"
+      - "${UF_CLIENT_PORT}:8080"
     restart: always

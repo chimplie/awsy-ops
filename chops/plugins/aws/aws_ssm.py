@@ -1,16 +1,14 @@
 from invoke import task
 
+from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
 from chops.plugins.aws.aws_service_plugin import AwsServicePlugin
 
 
-class AwsSsmPlugin(AwsServicePlugin):
+class AwsSsmPlugin(AwsServicePlugin, AwsEnvsPluginMixin):
     name = 'aws_ssm'
     dependencies = ['aws', 'aws_envs']
     service_name = 'ssm'
     required_keys = ['namespace']
-
-    def envs_from_string(self, value):
-        return self.app.plugins['aws_envs'].envs_from_string(value)
 
     def get_path_for_env(self, env_name):
         return '{namespace}/{env_name}/'.format(

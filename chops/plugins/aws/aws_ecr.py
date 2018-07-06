@@ -1,25 +1,14 @@
 from invoke import task
 
-from chops.plugins.aws.aws_service_plugin import AwsServicePlugin
+from chops.plugins.aws.aws_container_service_plugin import AwsContainerServicePlugin
+from chops.plugins.docker import DockerPluginMixin
 
 
-class AwsEcrPlugin(AwsServicePlugin):
+class AwsEcrPlugin(AwsContainerServicePlugin, DockerPluginMixin):
     name = 'aws_ecr'
     dependencies = ['aws', 'docker']
     service_name = 'ecr'
     required_keys = ['services']
-
-    def get_profile(self):
-        return self.app.plugins['aws'].config['profile']
-
-    def get_aws_project_name(self):
-        return self.app.plugins['aws'].config['project_name']
-
-    def get_docker_project_name(self):
-        return self.app.plugins['docker'].config['project_name']
-
-    def get_docker_tag(self):
-        return self.app.plugins['docker'].config['tag']
 
     def describe_repositories(self):
         repository_names = ['{project_name}/{service_name}'.format(
@@ -35,12 +24,6 @@ class AwsEcrPlugin(AwsServicePlugin):
         for repo_entry in response.get('repositories', []):
             repositories[repo_entry['repositoryName']] = repo_entry
         return repositories
-
-    def get_service_path(self, service_name):
-        return '{project_name}/{service_name}'.format(
-            project_name=self.get_aws_project_name(),
-            service_name=service_name,
-        )
 
     def get_tasks(self):
         @task

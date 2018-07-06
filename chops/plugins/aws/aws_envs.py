@@ -31,4 +31,12 @@ class AwsEnvsPlugin(chops.core.Plugin):
         return environments
 
 
+class AwsEnvsPluginMixin:
+    def envs_from_string(self, value):
+        return self.app.plugins['aws_envs'].envs_from_string(value)
+
+    def get_current_env(self):
+        return self.app.plugins['aws_envs'].current
+
+
 PLUGIN_CLASS = AwsEnvsPlugin

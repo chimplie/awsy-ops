@@ -1,6 +1,6 @@
 FROM nginx:alpine
 
-EXPOSE 80
+EXPOSE 8080
 
 RUN mkdir /app
 RUN apk update && apk upgrade && apk add bash

@@ -11,3 +11,9 @@ class AwsServicePlugin(chops.core.Plugin):
         super().__init__(*args, **kwargs)
         self.aws_plugin: AwsPlugin = self.app.plugins['aws']
         self.client = self.aws_plugin.boto_session.client(self.service_name)
+
+    def get_profile(self):
+        return self.app.plugins['aws'].config['profile']
+
+    def get_aws_project_name(self):
+        return self.app.plugins['aws'].config['project_name']

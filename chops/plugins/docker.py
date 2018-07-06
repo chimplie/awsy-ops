@@ -57,4 +57,12 @@ class DockerPlugin(chops.core.Plugin):
         return [build, down, up, up_d, version]
 
 
+class DockerPluginMixin:
+    def get_docker_project_name(self):
+        return self.app.plugins['docker'].config['project_name']
+
+    def get_docker_tag(self):
+        return self.app.plugins['docker'].config['tag']
+
+
 PLUGIN_CLASS = DockerPlugin

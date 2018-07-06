@@ -29,6 +29,7 @@ SETTINGS['plugins'] = [
     'chops.plugins.aws.aws_envs',
     'chops.plugins.aws.aws_ssm',
     'chops.plugins.aws.aws_ecr',
+    'chops.plugins.aws.aws_ecs',
     'chops.plugins.aws.aws_ebt',
 ]
 
@@ -64,6 +65,49 @@ SETTINGS['aws_envs'] = {
 
 SETTINGS['aws_ecr'] = {
     'services': ['apiserver', 'webclient', 'frontserver'],
+}
+
+SETTINGS['aws_ecs'] = {
+    'service_name': 'Web',
+    'containers': [
+        {
+            'name': 'apiserver',
+            'image': '899190935332.dkr.ecr.us-east-1.amazonaws.com/chopsexamplewebapp/apiserver:latest',
+            'memory': 500,
+            'essential': True,
+        },
+        {
+            'name': 'webclient',
+            'image': '899190935332.dkr.ecr.us-east-1.amazonaws.com/chopsexamplewebapp/webclient:latest',
+            'memory': 300,
+            'essential': True,
+        },
+        {
+            'name': 'frontserver',
+            'image': '899190935332.dkr.ecr.us-east-1.amazonaws.com/chopsexamplewebapp/frontserver:latest',
+            'memory': 200,
+            'portMappings': [
+                {
+                    'containerPort': 8080,
+                    'hostPort': 80,
+                    'protocol': 'tcp'
+                },
+            ],
+            'links': [
+                'webclient',
+                'apiserver',
+            ],
+            'essential': True,
+            'logConfiguration': {
+                'logDriver': 'awslogs',
+                'options': {
+                    'awslogs-group': 'chopsexamplewebapp-prod',
+                    'awslogs-region': 'us-east-1',
+                    'awslogs-stream-prefix': 'awslogs-local',
+                }
+            },
+        },
+    ],
 }
 
 SETTINGS['aws_ebt'] = {
