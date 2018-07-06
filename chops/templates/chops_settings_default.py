@@ -45,6 +45,9 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS Elastic Container Registry plugin
     # 'chops.plugins.aws.aws_ecr',
 
+    # Uncomment to use AWS CloudWatch Logs plugin
+    # 'chops.plugins.aws.aws_logs',
+
     # Uncomment to use AWS Elastic Container Service plugin
     # 'chops.plugins.aws.aws_ecs',
 
@@ -86,8 +89,15 @@ SETTINGS['aws_ecr'] = {
     'services': [],
 }
 
+SETTINGS['aws_logs'] = {
+    'namespace': '/{}'.format(SETTINGS['aws']['project_name']),
+}
+
 SETTINGS['aws_ecs'] = {
-    'services': [],
+    'cluster_prefix': '{}-'.format(SETTINGS['aws']['project_name']),
+    'service_name': '{}-Web'.format(SETTINGS['aws']['project_name']),
+    'task_definition_name': '{}-Web-'.format(SETTINGS['aws']['project_name']),
+    'containers': [],
 }
 
 SETTINGS['aws_ebt'] = {

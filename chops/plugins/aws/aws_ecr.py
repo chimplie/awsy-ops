@@ -10,11 +10,19 @@ class AwsEcrPlugin(AwsContainerServicePlugin, DockerPluginMixin):
     service_name = 'ecr'
     required_keys = ['services']
 
-    def describe_repositories(self):
-        repository_names = ['{project_name}/{service_name}'.format(
+    def get_service_repo_name(self, service_name):
+        return '{project_name}/{service_name}'.format(
             service_name=service_name,
             project_name=self.get_aws_project_name()
-        ) for service_name in self.config['services']]
+        )
+
+    def describe_repositories(self):
+        """
+        Returns repository descriptions.
+        :return: dict[] repository details
+        """
+        repository_names = [self.get_service_repo_name(service_name)
+                            for service_name in self.config['services']]
 
         response = self.client.describe_repositories(
             repositoryNames=repository_names
@@ -24,6 +32,19 @@ class AwsEcrPlugin(AwsContainerServicePlugin, DockerPluginMixin):
         for repo_entry in response.get('repositories', []):
             repositories[repo_entry['repositoryName']] = repo_entry
         return repositories
+
+    def get_service_image_uri(self, service_name, docker_tag=None):
+        """
+        Returns repository URL for specified service and tag (current if empty).
+        :param service_name: str name of the service
+        :param docker_tag: str | None docker tag or None for the current one
+        :return: str full repository URI
+        """
+        repositories = self.describe_repositories()
+        return '{uri}:{tag}'.format(
+            uri=repositories[self.get_service_repo_name(service_name)]['repositoryUri'],
+            tag=docker_tag or self.get_docker_tag(),
+        )
 
     def get_tasks(self):
         @task
@@ -107,9 +128,14 @@ class AwsEcrPlugin(AwsContainerServicePlugin, DockerPluginMixin):
         @task(login, tag, push)
         def publish(ctx):
             """Logins to AWS ECR registry, tags and pushes Docker containers."""
-            pass
+            ctx.info('Successfully published all images to AWS Elastic Container Registry.')
 
         return [create, describe, login, tag, push, publish]
+
+
+class AwsEcrPluginMixin:
+    def get_service_image_uri(self, service_name, docker_tag=None):
+        return self.app.plugins['aws_ecr'].get_service_image_uri(service_name, docker_tag)
 
 
 PLUGIN_CLASS = AwsEcrPlugin

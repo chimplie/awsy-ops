@@ -3,29 +3,46 @@ import time
 from invoke import task
 
 from chops.plugins.aws.aws_container_service_plugin import AwsContainerServicePlugin
+from chops.plugins.aws.aws_ecr import AwsEcrPluginMixin
 from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
+from chops.plugins.aws.aws_logs import AwsLogsPluginMixin
 from chops.plugins.docker import DockerPluginMixin
 
 
-class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMixin):
+class AwsEcsPlugin(AwsContainerServicePlugin,
+                   AwsEcrPluginMixin, AwsEnvsPluginMixin, AwsLogsPluginMixin,
+                   DockerPluginMixin):
     name = 'aws_ecs'
     dependencies = ['aws', 'aws_ecr', 'aws_envs', 'docker']
     service_name = 'ecs'
-    required_keys = ['containers', 'service_name']
+    required_keys = ['cluster_prefix', 'containers', 'service_name', 'task_definition_name']
 
     def get_containers(self):
         """
         Returns container definitions
         :return: dict[] container definitions
         """
-        return self.config['containers']
+        containers = self.config['containers']
+        for container in containers:
+            if 'image' not in container:
+                container['image'] = self.get_service_image_uri(container['name'])
+
+            container['logConfiguration'] = {
+                'logDriver': 'awslogs',
+                'options': {
+                    'awslogs-group': self.get_log_group_name(),
+                    'awslogs-region': 'us-east-1',
+                    'awslogs-stream-prefix': 'ecs-local',
+                }
+            }
+        return containers
 
     def get_cluster_prefix(self):
         """
         Returns cluster prefix
         :return: str cluster prefix
         """
-        return self.get_aws_project_name() + '-'
+        return self.config['cluster_prefix']
 
     def get_cluster_name(self, env=None):
         """
@@ -38,23 +55,17 @@ class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMi
 
     def get_task_definition_name(self):
         """
-        Returns task definition name.
+        Returns default task definition name.
         :return: str task definition name
         """
-        return '{project_name}-{service_name}'.format(
-            project_name=self.get_aws_project_name(),
-            service_name=self.config['service_name'],
-        )
+        return self.config['task_definition_name']
 
     def get_service_name(self):
         """
         Returns default service name
         :return: str service name
         """
-        return '{project_name}-{service_name}'.format(
-            project_name=self.get_aws_project_name(),
-            service_name=self.config['service_name'],
-        )
+        return self.config['service_name']
 
     def get_cluster_names(self, env):
         """
@@ -264,11 +275,13 @@ class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMi
         @task
         def list_clusters(ctx):
             """Lists clusters."""
+            ctx.info('Available cluster ARNs:')
             ctx.pp.pprint(self.get_cluster_arns())
 
         @task(iterable=['env'])
         def describe_clusters(ctx, env=None):
             """Describes cluster, use --env=* for all environments."""
+            ctx.info('Available cluster info:')
             ctx.pp.pprint(self.get_clusters_info(self.get_cluster_names(env)))
 
         @task
@@ -276,13 +289,14 @@ class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMi
             """Describes task definitions."""
             for arn in self.get_task_def_arns():
                 response = self.client.describe_task_definition(taskDefinition=arn)
+                ctx.info('Task definition of {}:'.format(arn))
                 ctx.pp.pprint(response['taskDefinition'])
 
         @task
         def register_task(ctx):
             """Registers main task definition."""
             task_def = self.register_task()
-            ctx.pp.pprint('Tasks definition {family}:{revision} successfully created.'.format(
+            ctx.info('Tasks definition {family}:{revision} successfully created.'.format(
                 family=task_def['family'],
                 revision=task_def['revision'],
             ))
@@ -292,12 +306,12 @@ class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMi
             """Creates service for the latest task definition"""
             if not self.service_exists():
                 self.create_service()
-                ctx.pp.pprint('Service {service_name} at cluster {cluster_name} successfully created.'.format(
+                ctx.info('Service {service_name} at cluster {cluster_name} successfully created.'.format(
                     service_name=self.get_service_name(),
                     cluster_name=self.get_cluster_name(),
                 ))
             else:
-                ctx.pp.pprint('Service {service_name} at cluster {cluster_name} already exists.'.format(
+                ctx.info('Service {service_name} at cluster {cluster_name} already exists.'.format(
                     service_name=self.get_service_name(),
                     cluster_name=self.get_cluster_name(),
                 ))
@@ -306,13 +320,13 @@ class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMi
         def start_service(ctx):
             """Starts the ECS service"""
             self.start_service()
-            ctx.pp.pprint('Requested service {service_name} start at cluster {cluster_name}.'.format(
+            ctx.info('Requested service {service_name} start at cluster {cluster_name}.'.format(
                 service_name=self.get_service_name(),
                 cluster_name=self.get_cluster_name(),
             ))
 
             is_server_started = self.await_service_running_count(1)
-            ctx.pp.pprint('Service {service_name} at cluster {cluster_name} started: {started}'.format(
+            ctx.info('Service {service_name} at cluster {cluster_name} started: {started}'.format(
                 service_name=self.get_service_name(),
                 cluster_name=self.get_cluster_name(),
                 started=is_server_started,
@@ -322,7 +336,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMi
         def stop_service(ctx):
             """Stops the ECS service"""
             self.stop_service()
-            ctx.pp.pprint('Service {} stopped: {}'.format(
+            ctx.info('Service {} stopped: {}'.format(
                 self.get_service_name(),
                 self.await_service_running_count(0),
             ))
@@ -331,7 +345,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMi
         def delete_service(ctx, force=False):
             """Stops the ECS service"""
             if not self.service_exists():
-                ctx.pp.pprint('Service {service_name} at {cluster_name} does not exist, nothing to delete.'.format(
+                ctx.info('Service {service_name} at {cluster_name} does not exist, nothing to delete.'.format(
                     service_name=self.get_service_name(),
                     cluster_name=self.get_cluster_name(),
                 ))
@@ -341,21 +355,22 @@ class AwsEcsPlugin(AwsContainerServicePlugin, AwsEnvsPluginMixin, DockerPluginMi
 
             if force:
                 service_stopped = self.await_service_running_count(0)
-                ctx.pp.pprint('Service {} stopped: {}'.format(
+                ctx.info('Service {} stopped: {}'.format(
                     self.get_service_name(),
                     service_stopped,
                 ))
 
             self.delete_service(force)
             self.await_service_absence()
-            ctx.pp.pprint('Service {service_name} at {cluster_name} successfully deleted.'.format(
+            ctx.info('Service {service_name} at {cluster_name} successfully deleted.'.format(
                 service_name=self.get_service_name(),
                 cluster_name=self.get_cluster_name(),
             ))
 
         @task(delete_service, register_task, create_service, start_service)
         def deploy(ctx):
-            ctx.pp.pprint('Service {service_name} successfully deployed to cluster {cluster_name}.'.format(
+            """Deploys service to the default cluster removing old service if necessary"""
+            ctx.info('Service {service_name} successfully deployed to cluster {cluster_name}.'.format(
                 service_name=self.get_service_name(),
                 cluster_name=self.get_cluster_name(),
             ))
