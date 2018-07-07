@@ -13,7 +13,7 @@ class AwsLogsPlugin(AwsServicePlugin, AwsEnvsPluginMixin):
     def get_log_group_name(self, app_env=None):
         """
         Returns log group name for specified or current environment.
-        :param app_env: str|None application environment
+        :param app_env: str | None application environment
         :return: str log group name
         """
         return '{namespace}/{env_name}'.format(

@@ -48,6 +48,12 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS CloudWatch Logs plugin
     # 'chops.plugins.aws.aws_logs',
 
+    # Uncomment to use AWS Elastic Compute Service plugin
+    # 'chops.plugins.aws.aws_ec2',
+
+    # Uncomment to use AWS Elastic Load Balancer plugin
+    # 'chops.plugins.aws.aws_elb',
+
     # Uncomment to use AWS Elastic Container Service plugin
     # 'chops.plugins.aws.aws_ecs',
 
@@ -91,6 +97,27 @@ SETTINGS['aws_ecr'] = {
 
 SETTINGS['aws_logs'] = {
     'namespace': '/{}'.format(SETTINGS['aws']['project_name']),
+}
+
+SETTINGS['aws_ec2'] = {
+    'vpc_name': SETTINGS['aws']['project_name'],
+    'availability_zone_azs': [
+        'a', 'b',
+    ],
+}
+
+SETTINGS['aws_elb'] = {
+    'namespace': SETTINGS['aws']['project_name'],
+    'target_groups': {
+        #
+        # EXAMPLE: uncomment the following to create a group
+        #          targeting port 80 of the `frontserver` container.
+        #
+        # 'frontserver': {
+        #     'Port': 80,
+        #     'Protocol': 'HTTP',
+        # },
+    },
 }
 
 SETTINGS['aws_ecs'] = {

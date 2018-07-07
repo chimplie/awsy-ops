@@ -4,16 +4,17 @@ from invoke import task
 
 from chops.plugins.aws.aws_container_service_plugin import AwsContainerServicePlugin
 from chops.plugins.aws.aws_ecr import AwsEcrPluginMixin
+from chops.plugins.aws.aws_elb import AwsElbPluginMixin
 from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
 from chops.plugins.aws.aws_logs import AwsLogsPluginMixin
 from chops.plugins.docker import DockerPluginMixin
 
 
 class AwsEcsPlugin(AwsContainerServicePlugin,
-                   AwsEcrPluginMixin, AwsEnvsPluginMixin, AwsLogsPluginMixin,
+                   AwsEcrPluginMixin, AwsEnvsPluginMixin, AwsLogsPluginMixin, AwsElbPluginMixin,
                    DockerPluginMixin):
     name = 'aws_ecs'
-    dependencies = ['aws', 'aws_ecr', 'aws_envs', 'docker']
+    dependencies = ['aws', 'aws_ecr', 'aws_envs', 'aws_elb', 'docker']
     service_name = 'ecs'
     required_keys = ['cluster_prefix', 'containers', 'service_name', 'task_definition_name']
 
@@ -96,6 +97,40 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         return [cluster for cluster in response.get('clusterArns', [])
                 if ':cluster/' + self.get_cluster_prefix() in cluster]
 
+    def get_current_env_config(self):
+        """
+        Returns current environment config if exists or an empty dictionary.
+        :return: dict environment config
+        """
+        return self.config \
+            .get('environments', {}) \
+            .get(self.get_current_env(), {})
+
+    def get_load_balancers(self):
+        """
+        Returns load balancers config if exists or an empty list.
+        :return: dict[] load balancers config
+        """
+        balancers = self.get_current_env_config().get('load_balancers', [])
+        for balancer in balancers:
+            if 'targetGroupArn' not in balancer:
+                balancer['targetGroupArn'] = self.get_target_group_arn(balancer['containerName'])
+        return balancers
+
+    def get_service_config(self):
+        """
+        Returns service configuration or an empty dictionary.
+        :return: dict service config
+        """
+        return self.config.get('service_config', {})
+
+    def get_tasks_count(self):
+        """
+        Returns desired tasks count for the main service.
+        :return: int tasks count
+        """
+        return self.config.get('tasks_count', 1)
+
     def get_container_instances(self, cluster_name):
         """
         Returns cluster container instances details
@@ -137,7 +172,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         """
         response = self.client.register_task_definition(
             family=self.get_task_definition_name(),
-            containerDefinitions=self.get_containers()
+            containerDefinitions=self.get_containers(),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         return response['taskDefinition']
@@ -156,7 +191,9 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
             deploymentConfiguration={
                 'maximumPercent': 100,
                 'minimumHealthyPercent': 50,
-            }
+            },
+            loadBalancers=self.get_load_balancers(),
+            **self.get_service_config(),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         return response['service']
@@ -180,17 +217,42 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 desired_count=desired_count,
             ))
 
+    def stop_all_service_tasks(self):
+        """
+        Stops all service tasks.
+        """
+        response = self.client.list_tasks(
+            cluster=self.get_cluster_name(),
+            serviceName=self.get_service_name(),
+        )
+        assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+
+        tasks_arns = response['taskArns']
+        for task_arn in tasks_arns:
+            response = self.client.stop_task(
+                cluster=self.get_cluster_name(),
+                task=task_arn,
+                reason='Service {} shutdown.'.format(self.get_service_name())
+            )
+            assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+            self.logger.info('Task {arn} stop requested for service {service} at cluster {cluster}.'.format(
+                arn=task_arn,
+                cluster=self.get_cluster_name(),
+                service=self.get_service_name(),
+            ))
+
     def stop_service(self):
         """
-        Starts the service by setting desired tasks count to one
+        Stops the service by setting desired tasks count to one
         """
         self.set_service_desired_tasks_count(0)
+        self.stop_all_service_tasks()
 
     def start_service(self):
         """
         Stops the service by setting desired tasks count to zero
         """
-        self.set_service_desired_tasks_count(1)
+        self.set_service_desired_tasks_count(self.get_tasks_count())
 
     def get_service_info(self):
         """
@@ -363,20 +425,25 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 ))
                 return
 
-            ctx.info('Deleting service {service_name} at {cluster_name}...'.format(
+            ctx.info('Stopping service {service_name} at {cluster_name}...'.format(
                 service_name=self.get_service_name(),
                 cluster_name=self.get_cluster_name(),
             ))
             self.stop_service()
 
-            if force:
+            if not force:
                 service_stopped = self.await_service_running_count(0)
                 ctx.info('Service {} stopped: {}'.format(
                     self.get_service_name(),
                     service_stopped,
                 ))
 
+            ctx.info('Deliting service {service_name} at {cluster_name}...'.format(
+                service_name=self.get_service_name(),
+                cluster_name=self.get_cluster_name(),
+            ))
             self.delete_service(force)
+
             self.await_service_absence()
             ctx.info('Service {service_name} at {cluster_name} successfully deleted.'.format(
                 service_name=self.get_service_name(),
