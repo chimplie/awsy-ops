@@ -140,6 +140,10 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         container_instances_list = self.client.list_container_instances(
             cluster=cluster_name
         ).get('containerInstanceArns', [])
+
+        if len(container_instances_list) == 0:
+            return []
+
         return self.client.describe_container_instances(
             cluster=cluster_name,
             containerInstances=container_instances_list
