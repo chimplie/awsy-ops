@@ -403,7 +403,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 cluster_name=self.get_cluster_name(),
             ))
 
-            is_server_started = self.await_service_running_count(1)
+            is_server_started = self.await_service_running_count(self.get_tasks_count())
             ctx.info('Service {service_name} at cluster {cluster_name} started: {started}'.format(
                 service_name=self.get_service_name(),
                 cluster_name=self.get_cluster_name(),
