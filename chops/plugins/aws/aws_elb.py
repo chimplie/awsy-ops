@@ -444,7 +444,7 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
             create_balancer(ctx, env)
             create_listeners(ctx, env)
 
-            ctx.info('Load balancer {} setup completed.')
+            ctx.info('Load balancers setup completed.')
 
         @task(iterable=['env'])
         def delete(ctx, env=None):

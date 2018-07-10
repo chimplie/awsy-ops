@@ -24,15 +24,38 @@ SETTINGS['log_dir'] = os.path.join(HERE, '.logs')
 
 SETTINGS['plugins'] = [
     'chops.plugins.dotenv',
+
+    # Uncomment to use Docker plugin
     'chops.plugins.docker',
+
+    # Uncomment to use Travis CI plugin
+    'chops.plugins.travis',
+
+    # Uncomment to use AWS plugin
     'chops.plugins.aws',
+
+    # Uncomment to use AWS Environments plugin
     'chops.plugins.aws.aws_envs',
+
+    # Uncomment to use AWS SSM plugin
     'chops.plugins.aws.aws_ssm',
+
+    # Uncomment to use AWS Elastic Container Registry plugin
     'chops.plugins.aws.aws_ecr',
+
+    # Uncomment to use AWS CloudWatch Logs plugin
     'chops.plugins.aws.aws_logs',
+
+    # Uncomment to use AWS Elastic Compute Service plugin
     'chops.plugins.aws.aws_ec2',
+
+    # Uncomment to use AWS Elastic Load Balancer plugin
     'chops.plugins.aws.aws_elb',
+
+    # Uncomment to use AWS Elastic Container Service plugin
     'chops.plugins.aws.aws_ecs',
+
+    # Uncomment to use AWS Elastic Beanstalk plugin
     'chops.plugins.aws.aws_ebt',
 ]
 
