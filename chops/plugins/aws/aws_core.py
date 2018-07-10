@@ -19,5 +19,12 @@ class AwsPlugin(chops.core.Plugin):
         """
         return self.boto_session.region_name
 
+    def get_credentials(self):
+        """
+        Returns current session credentials (e.g. AWS key ID, secret key et c.).
+        :return: dict session credentials
+        """
+        return self.boto_session.get_credentials()
+
 
 PLUGIN_CLASS = AwsPlugin

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import os
+
 from flask import jsonify, Flask
 
 
@@ -8,7 +10,7 @@ app = Flask(__name__)
 @app.route('/api/info')
 def api():
     return jsonify({
-        'appName': 'Chops Example Web Application',
+        'appName': os.environ.get('PROJECT_DESCRIPTION', 'Chops Example Web Application'),
     })
 
 

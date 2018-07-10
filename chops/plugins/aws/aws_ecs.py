@@ -45,6 +45,17 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                     }
                 }
 
+            if 'requires_aws_env_setup' in container:
+                container['environment'] = container.get('environment', [])
+                container['environment'].append([
+                    {'name': 'APP_ENV', 'value': self.get_current_env()},
+                    {'name': 'AWS_REGION', 'value': self.get_aws_region()},
+                    {'name': 'AWS_ACCESS_KEY_ID', 'value': self.get_credentials()['access_key']},
+                    {'name': 'AWS_SECRET_ACCESS_KEY', 'value': self.get_credentials()['secret_key']},
+                    {'name': 'PROJECT_NAME', 'value': self.get_aws_project_name()},
+                ])
+                del container['requires_aws_env_setup']
+
             if container['name'] in container_overrides:
                 container.update(container_overrides[container['name']])
 

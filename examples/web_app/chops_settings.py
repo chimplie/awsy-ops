@@ -29,7 +29,7 @@ SETTINGS['plugins'] = [
     'chops.plugins.docker',
 
     # Uncomment to use Travis CI plugin
-    'chops.plugins.travis',
+    # 'chops.plugins.travis',
 
     # Uncomment to use AWS plugin
     'chops.plugins.aws',
@@ -147,6 +147,7 @@ SETTINGS['aws_ecs'] = {
         {
             'name': 'apiserver',
             'essential': True,
+            'requires_aws_env_setup': True,
         },
         {
             'name': 'webclient',

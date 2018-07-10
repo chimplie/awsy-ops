@@ -1,0 +1,31 @@
+version: '3.2'
+
+services:
+  apiserver:
+    image: chopsexamplewebapp_apiserver
+    build:
+      context: ../server/api
+      dockerfile: Dockerfile
+      cache_from:
+        - "${DOCKER_REPOSITORY_PREFIX}apiserver:latest"
+        - "${DOCKER_REPOSITORY_PREFIX}apiserver:${DOCKER_TAG}"
+    volumes:
+      - ../server/api:/app
+  frontserver:
+    image: chopsexamplewebapp_frontserver
+    build:
+      context: front-server
+      dockerfile: Dockerfile
+      cache_from:
+        - "${DOCKER_REPOSITORY_PREFIX}frontserver:latest"
+        - "${DOCKER_REPOSITORY_PREFIX}frontserver:${DOCKER_TAG}"
+  webclient:
+    image: chopsexamplewebapp_webclient
+    build:
+      context: ../client/web-app
+      dockerfile: Dockerfile
+      cache_from:
+        - "${DOCKER_REPOSITORY_PREFIX}webclient:latest"
+        - "${DOCKER_REPOSITORY_PREFIX}webclient:${DOCKER_TAG}"
+    volumes:
+      - ../client/web-app:/app

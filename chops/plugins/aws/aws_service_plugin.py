@@ -20,3 +20,6 @@ class AwsServicePlugin(chops.core.Plugin):
 
     def get_aws_project_name(self):
         return self.app.plugins['aws'].config['project_name']
+
+    def get_credentials(self):
+        return self.app.plugins['aws'].get_credentials()
