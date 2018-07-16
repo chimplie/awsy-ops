@@ -47,7 +47,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
 
             if 'requires_aws_env_setup' in container:
                 container['environment'] = container.get('environment', [])
-                container['environment'].append([
+                container['environment'].extend([
                     {'name': 'APP_ENV', 'value': self.get_current_env()},
                     {'name': 'AWS_REGION', 'value': self.get_aws_region()},
                     {'name': 'AWS_ACCESS_KEY_ID', 'value': self.get_credentials().access_key},
