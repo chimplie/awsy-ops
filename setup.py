@@ -45,7 +45,7 @@ setup(
     install_requires=[
         'markdown',
         'boto3==1.7.33',
-        'invoke==0.22.1',
+        'invoke==1.0.0',
         'python-dotenv==0.7.1',
         'PyYaml==3.12',
     ],
