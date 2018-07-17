@@ -7,14 +7,15 @@ from chops.plugins.aws.aws_ecr import AwsEcrPluginMixin
 from chops.plugins.aws.aws_elb import AwsElbPluginMixin
 from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
 from chops.plugins.aws.aws_logs import AwsLogsPluginMixin
+from chops.plugins.aws.aws_s3 import AwsS3PluginMixin
 from chops.plugins.docker import DockerPluginMixin
 
 
 class AwsEcsPlugin(AwsContainerServicePlugin,
-                   AwsEcrPluginMixin, AwsEnvsPluginMixin, AwsLogsPluginMixin, AwsElbPluginMixin,
+                   AwsEcrPluginMixin, AwsEnvsPluginMixin, AwsLogsPluginMixin, AwsElbPluginMixin, AwsS3PluginMixin,
                    DockerPluginMixin):
     name = 'aws_ecs'
-    dependencies = ['aws', 'aws_ecr', 'aws_envs', 'aws_elb', 'docker']
+    dependencies = ['aws', 'aws_ecr', 'aws_envs', 'aws_elb', 'aws_s3', 'docker']
     service_name = 'ecs'
     required_keys = ['cluster_prefix', 'containers', 'service_name', 'task_definition_name']
 
@@ -52,6 +53,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                     {'name': 'AWS_REGION', 'value': self.get_aws_region()},
                     {'name': 'AWS_ACCESS_KEY_ID', 'value': self.get_credentials().access_key},
                     {'name': 'AWS_SECRET_ACCESS_KEY', 'value': self.get_credentials().secret_key},
+                    {'name': 'AWS_STORAGE_BUCKET_NAME', 'value': self.get_bucket_name()},
                     {'name': 'PROJECT_NAME', 'value': self.get_aws_project_name()},
                 ])
                 del container['requires_aws_env_setup']

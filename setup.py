@@ -43,7 +43,7 @@ setup(
         'chops.plugins.dotenv',
     ],
     install_requires=[
-        'markdown',
+        'markdown>=2.0',
         'boto3==1.7.33',
         'invoke==1.0.0',
         'python-dotenv==0.7.1',

@@ -42,6 +42,9 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS SSM plugin
     # 'chops.plugins.aws.aws_ssm',
 
+    # Uncomment to use AWS S3 plugin
+    # 'chops.plugins.aws.aws_s3',
+
     # Uncomment to use AWS Elastic Container Registry plugin
     # 'chops.plugins.aws.aws_ecr',
 
@@ -80,15 +83,19 @@ SETTINGS['aws'] = {
     'project_name': SETTINGS['project_name'],
 }
 
-SETTINGS['aws_ssm'] = {
-    'namespace': '/{}'.format(SETTINGS['aws']['project_name']),
-}
-
 SETTINGS['aws_envs'] = {
     'environments': {
         'prod': {}
     },
     'default': 'prod',
+}
+
+SETTINGS['aws_ssm'] = {
+    'namespace': '/{}'.format(SETTINGS['aws']['project_name']),
+}
+
+SETTINGS['aws_s3'] = {
+    'namespace': SETTINGS['aws']['project_name'],
 }
 
 SETTINGS['aws_ecr'] = {
