@@ -61,6 +61,13 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
 
         return containers
 
+    def get_volumes(self):
+        """
+        Returns the list of the defined volumes or the empty list.
+        :return: dict[] list of volumes
+        """
+        return self.config.get('volumes', [])
+
     def get_cluster_prefix(self):
         """
         Returns cluster prefix
@@ -188,6 +195,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         response = self.client.register_task_definition(
             family=self.get_task_definition_name(),
             containerDefinitions=self.get_containers(),
+            volumes=self.get_volumes(),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         return response['taskDefinition']
