@@ -61,8 +61,15 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS Elastic Container Service plugin
     'chops.plugins.aws.aws_ecs',
 
+    # Uncomment to use AWS Application Auto Scaling Service plugin
+    'chops.plugins.aws.aws_app_scale',
+
     # Uncomment to use AWS Elastic Beanstalk plugin
     'chops.plugins.aws.aws_ebt',
+
+    # ----------------------------
+    # Put your local plugins here
+    # ----------------------------
 
     # Uncomment to use local tasks
     # (we suggest to postpone initialization of this plugin as much as possible)
@@ -140,13 +147,13 @@ SETTINGS['aws_ecs'] = {
                 'prod': {
                     'container_overrides': {
                         'apiserver': {
-                            'memory': 500,
+                            'memory': 250,
                         },
                         'webclient': {
-                            'memory': 300,
+                            'memory': 100,
                         },
                         'frontserver': {
-                            'memory': 200,
+                            'memory': 100,
                         }
                     },
                 },
@@ -201,6 +208,41 @@ SETTINGS['aws_ecs'] = {
             },
             'tasks_count': 1,
         }
+    },
+}
+
+SETTINGS['aws_app_scale'] = {
+    'services': {
+        'Web': {
+            'target': {
+                'MinCapacity': 1,
+                'MaxCapacity': 2,
+            },
+            'policies': {
+                'CPU': {
+                    'PolicyType': 'TargetTrackingScaling',
+                    'TargetTrackingScalingPolicyConfiguration': {
+                        'TargetValue': 70,
+                        'PredefinedMetricSpecification': {
+                            'PredefinedMetricType': 'ECSServiceAverageCPUUtilization'
+                        },
+                        'ScaleOutCooldown': 300,
+                        'ScaleInCooldown': 300,
+                    },
+                },
+                'RAM': {
+                    'PolicyType': 'TargetTrackingScaling',
+                    'TargetTrackingScalingPolicyConfiguration': {
+                        'TargetValue': 70,
+                        'PredefinedMetricSpecification': {
+                            'PredefinedMetricType': 'ECSServiceAverageMemoryUtilization'
+                        },
+                        'ScaleOutCooldown': 300,
+                        'ScaleInCooldown': 300,
+                    },
+                },
+            },
+        },
     },
 }
 

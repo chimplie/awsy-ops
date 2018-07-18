@@ -635,4 +635,15 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         ]
 
 
+class AwsEcsPluginMixin:
+    def get_ecs_services_names(self):
+        return self.app.plugins['aws_ecs'].get_services_names()
+
+    def get_ecs_cluster_name(self, env=None):
+        return self.app.plugins['aws_ecs'].get_cluster_name(env)
+
+    def get_ecs_service_name(self, service_name):
+        return self.app.plugins['aws_ecs'].get_service_name(service_name)
+
+
 PLUGIN_CLASS = AwsEcsPlugin

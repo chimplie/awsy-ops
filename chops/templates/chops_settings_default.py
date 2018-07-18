@@ -60,8 +60,15 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS Elastic Container Service plugin
     # 'chops.plugins.aws.aws_ecs',
 
+    # Uncomment to use AWS Application Auto Scaling Service plugin
+    # 'chops.plugins.aws.aws_app_scale',
+
     # Uncomment to use AWS Elastic Beanstalk plugin
     # 'chops.plugins.aws.aws_ebt',
+
+    # ----------------------------
+    # Put your local plugins here
+    # ----------------------------
 
     # Uncomment to use local tasks
     # (we suggest to postpone initialization of this plugin as much as possible)
@@ -138,6 +145,10 @@ SETTINGS['aws_elb'] = {
 SETTINGS['aws_ecs'] = {
     'namespace': SETTINGS['aws']['project_name'],
     'task_definitions': {},
+    'services': {},
+}
+
+SETTINGS['aws_app_scale'] = {
     'services': {},
 }
 
