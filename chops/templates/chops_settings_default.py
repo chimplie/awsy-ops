@@ -120,7 +120,7 @@ SETTINGS['aws_elb'] = {
         # EXAMPLE: uncomment the following to create a group
         #          targeting port 80 of the `frontserver` container.
         #
-        # 'frontserver': {
+        # 'Web': {
         #     'Port': 80,
         #     'Protocol': 'HTTP',
         # },
@@ -128,10 +128,9 @@ SETTINGS['aws_elb'] = {
 }
 
 SETTINGS['aws_ecs'] = {
-    'cluster_prefix': '{}-'.format(SETTINGS['aws']['project_name']),
-    'service_name': '{}-Web'.format(SETTINGS['aws']['project_name']),
-    'task_definition_name': '{}-Web-'.format(SETTINGS['aws']['project_name']),
-    'containers': [],
+    'namespace': SETTINGS['aws']['project_name'],
+    'task_definitions': {},
+    'services': {},
 }
 
 SETTINGS['aws_ebt'] = {

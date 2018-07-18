@@ -213,11 +213,19 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
 
     def get_service_config(self, service_name):
         """
-        Returns service configuration or an empty dictionary.
+        Returns service configuration.
         :param service_name: str service short name
         :return: dict service config
         """
-        return self.config['services'][service_name].get('config', {})
+        return self.config['services'][service_name]
+
+    def get_service_ecs_config(self, service_name):
+        """
+        Returns service configuration or an empty dictionary.
+        :param service_name: str service short name
+        :return: dict service ECS config
+        """
+        return self.get_service_config(service_name).get('config', {})
 
     def get_tasks_count(self, service_name):
         """
@@ -312,7 +320,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 'minimumHealthyPercent': 50,
             },
             loadBalancers=self.get_load_balancers(service_name),
-            **self.get_service_config(service_name),
+            **self.get_service_ecs_config(service_name),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         return response['service']
