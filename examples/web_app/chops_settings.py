@@ -37,11 +37,11 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS Environments plugin
     'chops.plugins.aws.aws_envs',
 
-    # Uncomment to use AWS S3 plugin
-    'chops.plugins.aws.aws_s3',
-
     # Uncomment to use AWS SSM plugin
     'chops.plugins.aws.aws_ssm',
+
+    # Uncomment to use AWS S3 plugin
+    'chops.plugins.aws.aws_s3',
 
     # Uncomment to use AWS Elastic Container Registry plugin
     'chops.plugins.aws.aws_ecr',

@@ -101,6 +101,14 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
         """
         return self.get_balancer_info(env)['LoadBalancerArn']
 
+    def get_balancer_dns(self, env=None):
+        """
+        Returns load balancer DNS name for the specified environment.
+        :param env: str | None environment name, None for the current environment
+        :return: str balancer DNS name
+        """
+        return self.get_balancer_info(env)['DNSName']
+
     def get_target_group_info(self, short_name, env=None):
         """
         Returns specified target group details for the selected environment (None for the current one).
@@ -477,6 +485,12 @@ class AwsElbPluginMixin:
 
     def get_target_group_arn(self, short_name, env=None):
         return self.app.plugins['aws_elb'].get_target_group_arn(short_name, env=env)
+
+    def get_balancer_dns(self, env=None):
+        return self.app.plugins['aws_elb'].get_balancer_dns(env)
+
+    def balancer_exists(self, env=None):
+        return self.app.plugins['aws_elb'].balancer_exists(env)
 
 
 PLUGIN_CLASS = AwsElbPlugin

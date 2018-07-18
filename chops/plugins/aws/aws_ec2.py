@@ -291,5 +291,9 @@ class AwsEc2PluginMixin:
     def get_vpc_id(self):
         return self.app.plugins['aws_ec2'].get_vpc_id()
 
+    @property
+    def ec2_client(self):
+        return self.app.plugins['aws_ec2'].client
+
 
 PLUGIN_CLASS = AwsEc2Plugin

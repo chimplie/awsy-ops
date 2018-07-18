@@ -3,6 +3,7 @@ import time
 from invoke import task
 
 from chops.plugins.aws.aws_container_service_plugin import AwsContainerServicePlugin
+from chops.plugins.aws.aws_ec2 import AwsEc2PluginMixin
 from chops.plugins.aws.aws_ecr import AwsEcrPluginMixin
 from chops.plugins.aws.aws_elb import AwsElbPluginMixin
 from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
@@ -12,14 +13,15 @@ from chops.plugins.docker import DockerPluginMixin
 
 
 class AwsEcsPlugin(AwsContainerServicePlugin,
-                   AwsEcrPluginMixin, AwsEnvsPluginMixin, AwsLogsPluginMixin, AwsElbPluginMixin, AwsS3PluginMixin,
+                   AwsEcrPluginMixin, AwsEnvsPluginMixin, AwsLogsPluginMixin,
+                   AwsElbPluginMixin, AwsS3PluginMixin, AwsEc2PluginMixin,
                    DockerPluginMixin):
     name = 'aws_ecs'
-    dependencies = ['aws', 'aws_ecr', 'aws_envs', 'aws_elb', 'aws_s3', 'docker']
+    dependencies = ['aws', 'aws_ecr', 'aws_envs', 'aws_elb', 'aws_s3', 'aws_ec2', 'docker']
     service_name = 'ecs'
     required_keys = ['cluster_prefix', 'containers', 'service_name', 'task_definition_name']
 
-    def get_containers(self):
+    def get_containers(self, env=None):
         """
         Returns container definitions
         :return: dict[] container definitions
@@ -28,7 +30,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
 
         container_overrides = {}
         if 'environments' in self.config:
-            env_config = self.config['environments'].get(self.get_current_env(), {})
+            env_config = self.config['environments'].get(env, {})
             if 'container_overrides' in env_config:
                 container_overrides = env_config['container_overrides']
 
@@ -40,7 +42,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 container['logConfiguration'] = {
                     'logDriver': 'awslogs',
                     'options': {
-                        'awslogs-group': self.get_log_group_name(),
+                        'awslogs-group': self.get_log_group_name(env),
                         'awslogs-region': self.get_aws_region(),
                         'awslogs-stream-prefix': 'ecs-local',
                     }
@@ -49,12 +51,13 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
             if 'requires_aws_env_setup' in container:
                 container['environment'] = container.get('environment', [])
                 container['environment'].extend([
-                    {'name': 'APP_ENV', 'value': self.get_current_env()},
+                    {'name': 'APP_ENV', 'value': env},
                     {'name': 'AWS_REGION', 'value': self.get_aws_region()},
                     {'name': 'AWS_ACCESS_KEY_ID', 'value': self.get_credentials().access_key},
                     {'name': 'AWS_SECRET_ACCESS_KEY', 'value': self.get_credentials().secret_key},
-                    {'name': 'AWS_STORAGE_BUCKET_NAME', 'value': self.get_bucket_name()},
+                    {'name': 'AWS_STORAGE_BUCKET_NAME', 'value': self.get_bucket_name(env)},
                     {'name': 'PROJECT_NAME', 'value': self.get_aws_project_name()},
+                    {'name': 'ALLOW_HOSTS', 'value': ','.join(self.get_access_hosts(env))},
                 ])
                 del container['requires_aws_env_setup']
 
@@ -62,6 +65,33 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 container.update(container_overrides[container['name']])
 
         return containers
+
+    def get_access_hosts(self, env=None):
+        """
+        Returns a list of hosts by which the ECS application can be accessed.
+        Includes load balancer DNS and EC2 instance public DNS and IPs.
+        :return: str[] list of hosts
+        """
+        # Working with set to deduplicate
+        get_access_hosts = set()
+
+        # Add balancer DNS name if exists
+        if self.balancer_exists():
+            get_access_hosts.add(self.get_balancer_dns(env))
+
+        # Iterate over EC2 instances
+        for container_instance in self.get_container_instances(self.get_cluster_name(env)):
+            if 'ec2_instance' in container_instance:
+                # and for each instance interface
+                for interface in container_instance['ec2_instance']['NetworkInterfaces']:
+                    # add all possible access hosts
+                    for section_name in ['Association', 'Attachment']:
+                        section = interface.get(section_name, {})
+                        for key in ['PublicDnsName', 'PublicIp', 'PrivateDnsName', 'PrivateIpAddress']:
+                            if key in section:
+                                get_access_hosts.add(section[key])
+
+        return list(get_access_hosts)
 
     def get_volumes(self):
         """
@@ -164,10 +194,20 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         if len(container_instances_list) == 0:
             return []
 
-        return self.client.describe_container_instances(
+        container_instances = self.client.describe_container_instances(
             cluster=cluster_name,
             containerInstances=container_instances_list
         ).get('containerInstances', [])
+
+        for instance in container_instances:
+            try:
+                instance['ec2_instance'] = self.ec2_client.describe_instances(
+                    InstanceIds=[instance['ec2InstanceId']]
+                )['Reservations'][0]['Instances'][0]
+            except (IndexError, KeyError):
+                pass
+
+        return container_instances
 
     def get_clusters_info(self, clusters):
         """
@@ -189,14 +229,14 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         response = self.client.list_task_definitions(familyPrefix=self.get_task_definition_name())
         return response.get('taskDefinitionArns', [])
 
-    def register_task(self):
+    def register_task(self, env):
         """
         Registers new task definition for default task family
         :return: dict created task definition
         """
         response = self.client.register_task_definition(
             family=self.get_task_definition_name(),
-            containerDefinitions=self.get_containers(),
+            containerDefinitions=self.get_containers(env),
             volumes=self.get_volumes(),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
@@ -391,14 +431,23 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 ctx.info('Task definition of {}:'.format(arn))
                 ctx.pp.pprint(response['taskDefinition'])
 
-        @task
-        def register_task(ctx):
+        @task(iterable=['env'])
+        def list_hosts(ctx, env=None):
+            """Lists access hosts, use --env=* for all environments."""
+            for app_env in self.envs_from_string(env):
+                ctx.info('Available access hosts for {} environment:'.format(app_env))
+                ctx.pp.pprint(self.get_access_hosts(app_env))
+
+        @task(iterable=['env'])
+        def register_task(ctx, env):
             """Registers main task definition."""
-            task_def = self.register_task()
-            ctx.info('Tasks definition {family}:{revision} successfully created.'.format(
-                family=task_def['family'],
-                revision=task_def['revision'],
-            ))
+            for app_env in self.envs_from_string(env):
+                task_def = self.register_task(app_env)
+                ctx.info('Tasks definition {family}:{revision} successfully created for {env} environment.'.format(
+                    family=task_def['family'],
+                    revision=task_def['revision'],
+                    env=app_env,
+                ))
 
         @task
         def create_service(ctx):
@@ -487,6 +536,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
             list_clusters, describe_clusters, describe_task_defs,
             register_task,
             create_service, start_service, stop_service, delete_service,
+            list_hosts,
             deploy,
         ]
 

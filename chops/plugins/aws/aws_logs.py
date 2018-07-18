@@ -70,8 +70,8 @@ class AwsLogsPlugin(AwsServicePlugin, AwsEnvsPluginMixin):
 
 
 class AwsLogsPluginMixin:
-    def get_log_group_name(self):
-        return self.app.plugins['aws_logs'].get_log_group_name()
+    def get_log_group_name(self, env=None):
+        return self.app.plugins['aws_logs'].get_log_group_name(env)
 
 
 PLUGIN_CLASS = AwsLogsPlugin

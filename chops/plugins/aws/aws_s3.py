@@ -136,8 +136,8 @@ class AwsS3Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
 
 
 class AwsS3PluginMixin:
-    def get_bucket_name(self):
-        return self.app.plugins['aws_s3'].get_bucket_name()
+    def get_bucket_name(self, env=None):
+        return self.app.plugins['aws_s3'].get_bucket_name(env)
 
 
 PLUGIN_CLASS = AwsS3Plugin
