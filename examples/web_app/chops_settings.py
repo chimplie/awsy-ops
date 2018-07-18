@@ -114,7 +114,7 @@ SETTINGS['aws_ec2'] = {
 SETTINGS['aws_elb'] = {
     'namespace': SETTINGS['aws']['project_name'],
     'target_groups': {
-        'frontserver': {
+        'Web': {
             'Port': 80,
             'Protocol': 'HTTP',
         },
@@ -122,60 +122,75 @@ SETTINGS['aws_elb'] = {
 }
 
 SETTINGS['aws_ecs'] = {
-    'cluster_prefix': '{}-'.format(SETTINGS['aws']['project_name']),
-    'service_name': '{}-Web'.format(SETTINGS['aws']['project_name']),
-    'task_definition_name': '{}-Web'.format(SETTINGS['aws']['project_name']),
-    'service_config': {
-        'healthCheckGracePeriodSeconds': 60,
-    },
-    'tasks_count': 1,
-    'environments': {
-        'prod': {
-            'container_overrides': {
-                'apiserver': {
-                    'memory': 500,
+    'namespace': SETTINGS['aws']['project_name'],
+    'task_definitions': {
+        'Web': {
+            'environments': {
+                'prod': {
+                    'container_overrides': {
+                        'apiserver': {
+                            'memory': 500,
+                        },
+                        'webclient': {
+                            'memory': 300,
+                        },
+                        'frontserver': {
+                            'memory': 200,
+                        }
+                    },
                 },
-                'webclient': {
-                    'memory': 300,
-                },
-                'frontserver': {
-                    'memory': 200,
-                }
             },
-            'load_balancers': [
+            'containers': [
                 {
-                    'containerName': 'frontserver',
-                    'containerPort': 8080,
+                    'name': 'apiserver',
+                    '__image__': 'apiserver',
+                    'essential': True,
+                    '__requires_aws_env_setup__': True,
                 },
-            ]
+                {
+                    'name': 'webclient',
+                    'essential': True,
+                },
+                {
+                    'name': 'frontserver',
+                    'portMappings': [
+                        {
+                            'containerPort': 8080,
+                            'hostPort': 80,
+                            'protocol': 'tcp'
+                        },
+                    ],
+                    'links': [
+                        'webclient',
+                        'apiserver',
+                    ],
+                    'essential': True,
+                },
+            ],
+            'volumes': [],
         },
     },
-    'containers': [
-        {
-            'name': 'apiserver',
-            'essential': True,
-            'requires_aws_env_setup': True,
-        },
-        {
-            'name': 'webclient',
-            'essential': True,
-        },
-        {
-            'name': 'frontserver',
-            'portMappings': [
-                {
-                    'containerPort': 8080,
-                    'hostPort': 80,
-                    'protocol': 'tcp'
+    'services': {
+        'Web': {
+            'task_definition': 'Web',
+            'environments': {
+                'prod': {
+                    'tasks_count': 1,
+                    'load_balancers': [
+                        {
+                            '__target_group__': 'Web',
+                            'containerName': 'frontserver',
+                            'containerPort': 8080,
+                        },
+                    ]
                 },
-            ],
-            'links': [
-                'webclient',
-                'apiserver',
-            ],
-            'essential': True,
-        },
-    ],
+            },
+            'config': {
+                'healthCheckGracePeriodSeconds': 60,
+            },
+            'tasks_count': 1,
+        }
+    },
 }
 
 SETTINGS['aws_ebt'] = {

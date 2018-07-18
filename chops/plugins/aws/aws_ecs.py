@@ -19,24 +19,46 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
     name = 'aws_ecs'
     dependencies = ['aws', 'aws_ecr', 'aws_envs', 'aws_elb', 'aws_s3', 'aws_ec2', 'docker']
     service_name = 'ecs'
-    required_keys = ['cluster_prefix', 'containers', 'service_name', 'task_definition_name']
+    required_keys = ['namespace', 'services', 'task_definitions']
 
-    def get_containers(self, env=None):
+    def get_task_def_names(self):
         """
-        Returns container definitions
+        Returns task definitions short names
+        :return: str[] task definition names
+        """
+        return list(self.config['task_definitions'].keys())
+
+    def get_services_names(self):
+        """
+        Returns services short names
+        :return: str[] services short names
+        """
+        return list(self.config['services'].keys())
+
+    def get_containers(self, task_name):
+        """
+        Returns container definitions for the specified task
+        :param task_name: str task name
         :return: dict[] container definitions
         """
-        containers = self.config['containers']
+        env = self.get_current_env()
+        task_config = self.config['task_definitions'][task_name]
+        containers = task_config['containers']
 
         container_overrides = {}
-        if 'environments' in self.config:
-            env_config = self.config['environments'].get(env, {})
+        if 'environments' in task_config:
+            env_config = task_config['environments'].get(env, {})
             if 'container_overrides' in env_config:
                 container_overrides = env_config['container_overrides']
 
         for container in containers:
             if 'image' not in container:
-                container['image'] = self.get_service_image_uri(container['name'])
+                if '__image__' in container:
+                    image_name = container['__image__']
+                    del container['__image__']
+                else:
+                    image_name = container['name']
+                container['image'] = self.get_service_image_uri(image_name)
 
             if 'logConfiguration' not in container:
                 container['logConfiguration'] = {
@@ -48,7 +70,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                     }
                 }
 
-            if 'requires_aws_env_setup' in container:
+            if '__requires_aws_env_setup__' in container:
                 container['environment'] = container.get('environment', [])
                 container['environment'].extend([
                     {'name': 'APP_ENV', 'value': env},
@@ -57,21 +79,23 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                     {'name': 'AWS_SECRET_ACCESS_KEY', 'value': self.get_credentials().secret_key},
                     {'name': 'AWS_STORAGE_BUCKET_NAME', 'value': self.get_bucket_name(env)},
                     {'name': 'PROJECT_NAME', 'value': self.get_aws_project_name()},
-                    {'name': 'ALLOW_HOSTS', 'value': ','.join(self.get_access_hosts(env))},
+                    {'name': 'ALLOW_HOSTS', 'value': ','.join(self.get_access_hosts())},
                 ])
-                del container['requires_aws_env_setup']
+                del container['__requires_aws_env_setup__']
 
             if container['name'] in container_overrides:
                 container.update(container_overrides[container['name']])
 
         return containers
 
-    def get_access_hosts(self, env=None):
+    def get_access_hosts(self):
         """
         Returns a list of hosts by which the ECS application can be accessed.
         Includes load balancer DNS and EC2 instance public DNS and IPs.
         :return: str[] list of hosts
         """
+        # Working on the current environment
+        env = self.get_current_env()
         # Working with set to deduplicate
         get_access_hosts = set()
 
@@ -93,19 +117,20 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
 
         return list(get_access_hosts)
 
-    def get_volumes(self):
+    def get_volumes(self, task_name):
         """
-        Returns the list of the defined volumes or the empty list.
+        Returns the list of the task's defined volumes or the empty list.
+        :param task_name: str task short name
         :return: dict[] list of volumes
         """
-        return self.config.get('volumes', [])
+        return self.config['task_definitions'][task_name].get('volumes', [])
 
     def get_cluster_prefix(self):
         """
         Returns cluster prefix
         :return: str cluster prefix
         """
-        return self.config['cluster_prefix']
+        return '{}-'.format(self.config['namespace'])
 
     def get_cluster_name(self, env=None):
         """
@@ -116,19 +141,31 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         """
         return self.get_cluster_prefix() + (env or self.get_current_env())
 
-    def get_task_definition_name(self):
+    def get_task_definition_name(self, task_name):
         """
-        Returns default task definition name.
+        Returns the task definition full name.
+        :param task_name: str task short name
         :return: str task definition name
         """
-        return self.config['task_definition_name']
+        return '{}-{}'.format(self.config['namespace'], task_name)
 
-    def get_service_name(self):
+    def get_service_task_definition_name(self, service_name):
+        """
+        Returns the task definition full name for the specified service.
+        The task definition by default equals to the server name
+        and could be overridden in the service's `task_definition` config key.
+        :param service_name: str service short name
+        :return: str task definition name
+        """
+        return self.get_task_definition_name(self.get_service_config(service_name).get('task_definition', service_name))
+
+    def get_service_name(self, service_name):
         """
         Returns default service name
-        :return: str service name
+        :param service_name: str service short name
+        :return: str service short name
         """
-        return self.config['service_name']
+        return '{}-{}'.format(self.config['namespace'], service_name)
 
     def get_cluster_names(self, env):
         """
@@ -147,39 +184,53 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         return [cluster for cluster in response.get('clusterArns', [])
                 if ':cluster/' + self.get_cluster_prefix() in cluster]
 
-    def get_current_env_config(self):
+    def get_service_env_config(self, service_name):
         """
         Returns current environment config if exists or an empty dictionary.
+        :param service_name: str service short name
         :return: dict environment config
         """
-        return self.config \
+        return self.config['services'][service_name] \
             .get('environments', {}) \
             .get(self.get_current_env(), {})
 
-    def get_load_balancers(self):
+    def get_load_balancers(self, service_name):
         """
         Returns load balancers config if exists or an empty list.
+        :param service_name: str service short name
         :return: dict[] load balancers config
         """
-        balancers = self.get_current_env_config().get('load_balancers', [])
+        balancers = self.get_service_env_config(service_name).get('load_balancers', [])
         for balancer in balancers:
             if 'targetGroupArn' not in balancer:
-                balancer['targetGroupArn'] = self.get_target_group_arn(balancer['containerName'])
+                if '__target_group__' in balancer:
+                    target_group_name = balancer['__target_group__']
+                    del balancer['__target_group__']
+                else:
+                    target_group_name = service_name
+                balancer['targetGroupArn'] = self.get_target_group_arn(target_group_name)
         return balancers
 
-    def get_service_config(self):
+    def get_service_config(self, service_name):
         """
         Returns service configuration or an empty dictionary.
+        :param service_name: str service short name
         :return: dict service config
         """
-        return self.config.get('service_config', {})
+        return self.config['services'][service_name].get('config', {})
 
-    def get_tasks_count(self):
+    def get_tasks_count(self, service_name):
         """
-        Returns desired tasks count for the main service.
+        Returns desired tasks count for the specified service.
+        :param service_name: str service short name
         :return: int tasks count
         """
-        return self.config.get('tasks_count', 1)
+        env = self.get_current_env()
+        service_config = self.get_service_config(service_name)
+        if 'tasks_count' in service_config.get('environments', {}).get(env, {}):
+            return service_config['environments'][env]['tasks_count']
+        else:
+            return service_config.get('tasks_count', 1)
 
     def get_container_instances(self, cluster_name):
         """
@@ -221,74 +272,83 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
             cluster['containerInstances'] = self.get_container_instances(cluster['clusterName'])
         return clusters
 
-    def get_task_def_arns(self):
+    def get_task_def_arns(self, task_name):
         """
         Returns task definition ARNs
+        :param task_name: str task definition short names
         :return: str[] list of task definition ARNs
         """
-        response = self.client.list_task_definitions(familyPrefix=self.get_task_definition_name())
+        response = self.client.list_task_definitions(familyPrefix=self.get_task_definition_name(task_name))
         return response.get('taskDefinitionArns', [])
 
-    def register_task(self, env):
+    def register_task(self, task_name):
         """
-        Registers new task definition for default task family
+        Registers new task definition for the specified default task family short name
+        :param task_name: str task definition short name
         :return: dict created task definition
         """
         response = self.client.register_task_definition(
-            family=self.get_task_definition_name(),
-            containerDefinitions=self.get_containers(env),
-            volumes=self.get_volumes(),
+            family=self.get_task_definition_name(task_name),
+            containerDefinitions=self.get_containers(task_name),
+            volumes=self.get_volumes(task_name),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         return response['taskDefinition']
 
-    def create_service(self):
+    def create_service(self, service_name):
         """
-        Creates default service and returns API response.
+        Creates specified service and returns API response.
         The service desired tasks count is set to zero.
+        :param service_name: str service short name
         :return: dict JSON response from API
         """
         response = self.client.create_service(
             cluster=self.get_cluster_name(),
-            serviceName=self.get_service_name(),
-            taskDefinition=self.get_task_definition_name(),
+            serviceName=self.get_service_name(service_name),
+            taskDefinition=self.get_service_task_definition_name(service_name),
             desiredCount=0,
             deploymentConfiguration={
                 'maximumPercent': 100,
                 'minimumHealthyPercent': 50,
             },
-            loadBalancers=self.get_load_balancers(),
-            **self.get_service_config(),
+            loadBalancers=self.get_load_balancers(service_name),
+            **self.get_service_config(service_name),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         return response['service']
 
-    def set_service_desired_tasks_count(self, desired_count):
+    def set_service_desired_tasks_count(self, service_name, desired_count):
         """
         Sets the number of desired tasks.
+        :param service_name: str service short name
         :param desired_count: int number of desired tasks
         """
+        full_service_name = self.get_service_name(service_name)
         response = self.client.update_service(
             cluster=self.get_cluster_name(),
-            service=self.get_service_name(),
+            service=full_service_name,
             desiredCount=desired_count,
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
         self.logger.info(
             'Service {service_name} at cluster {cluster_name} desired count set to {desired_count}.'.format(
-                service_name=self.get_service_name(),
+                service_name=full_service_name,
                 cluster_name=self.get_cluster_name(),
                 desired_count=desired_count,
             ))
 
-    def stop_all_service_tasks(self):
+    def stop_all_service_tasks(self, service_name):
         """
         Stops all service tasks.
+        :param service_name: str service short name
         """
+        full_service_name = self.get_service_name(service_name)
+
+        # Get tasks list
         response = self.client.list_tasks(
             cluster=self.get_cluster_name(),
-            serviceName=self.get_service_name(),
+            serviceName=full_service_name,
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
@@ -297,69 +357,77 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
             response = self.client.stop_task(
                 cluster=self.get_cluster_name(),
                 task=task_arn,
-                reason='Service {} shutdown.'.format(self.get_service_name())
+                reason='Service {} shutdown.'.format(full_service_name)
             )
             assert response['ResponseMetadata']['HTTPStatusCode'] == 200
             self.logger.info('Task {arn} stop requested for service {service} at cluster {cluster}.'.format(
                 arn=task_arn,
                 cluster=self.get_cluster_name(),
-                service=self.get_service_name(),
+                service=full_service_name,
             ))
 
-    def stop_service(self):
+    def stop_service(self, service_name):
         """
         Stops the service by setting desired tasks count to one
+        :param service_name: str service short name
         """
-        self.set_service_desired_tasks_count(0)
-        self.stop_all_service_tasks()
+        self.set_service_desired_tasks_count(service_name, 0)
+        self.stop_all_service_tasks(service_name)
 
-    def start_service(self):
+    def start_service(self, service_name):
         """
         Stops the service by setting desired tasks count to zero
+        :param service_name: str service short name
         """
-        self.set_service_desired_tasks_count(self.get_tasks_count())
+        self.set_service_desired_tasks_count(service_name, self.get_tasks_count(service_name))
 
-    def get_service_info(self):
+    def get_service_info(self, service_name):
         """
-        Describes default service
+        Describes specified service
+        :param service_name: str service short name
         :return: dict|None service description or None if service does not exist
         """
+        full_service_name = self.get_service_name(service_name)
+
         services = self.client.describe_services(
             cluster=self.get_cluster_name(),
-            services=[self.get_service_name()]
+            services=[full_service_name]
         ).get('services', [])
 
         for service in services:
-            if service['serviceName'] == self.get_service_name():
+            if service['serviceName'] == full_service_name:
                 return service
 
-    def service_exists(self):
+    def service_exists(self, service_name):
         """
-        Returns whether default server exists
+        Returns whether specified server exists
+        :param service_name: str service short name
         :return: bool whether default server exists or not
         """
-        service_info = self.get_service_info()
+        service_info = self.get_service_info(service_name)
         return service_info is not None and service_info['status'] != 'INACTIVE'
 
-    def get_service_running_count(self):
+    def get_service_running_count(self, service_name):
         """
         Returns number of running tasks.
+        :param service_name: str service short name
         :return: int number of running tasks
         """
-        service = self.get_service_info()
+        service = self.get_service_info(service_name)
         if service is not None:
             return service['runningCount']
 
-    def await_service_running_count(self, count, timeout=1, retries=60):
+    def await_service_running_count(self, service_name, count, timeout=1, retries=60):
         """
         Awaits service running count became equal to the specified value
+        :param service_name: str service short name
         :param count: int how many running instances we want
         :param timeout: float timeout between retries in seconds
         :param retries: int number of retries
         :return: bool whether specified running count was reached or not
         """
         for i in range(retries):
-            current_count = self.get_service_running_count()
+            current_count = self.get_service_running_count(service_name)
             if current_count is None:
                 return False
             elif current_count == count:
@@ -368,7 +436,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
             self.logger.info(
                 'Awaiting service {service_name} at cluster {cluster_name} '
                 'to reach {count} running tasks (retries left: {left})...'.format(
-                    service_name=self.get_service_name(),
+                    service_name=self.get_service_name(service_name),
                     cluster_name=self.get_cluster_name(),
                     count=count, left=retries-i,
                 ))
@@ -376,33 +444,43 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
 
         return False
 
-    def delete_service(self, force=False):
+    def delete_service(self, service_name, force=False):
         """
         Deletes the current service.
+        :param service_name: str service short name
         :param force: whether to remove service forcefully
         :return: dict JSON response from API
         """
+        full_service_name = self.get_service_name(service_name)
+
         response = self.client.delete_service(
             cluster=self.get_cluster_name(),
-            service=self.get_service_name(),
+            service=full_service_name,
             force=force,
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
         self.logger.info('Service {service_name} at cluster {cluster_name} deletion requested.'.format(
             cluster_name=self.get_cluster_name(),
-            service_name=self.get_service_name(),
+            service_name=full_service_name,
         ))
 
-    def await_service_absence(self, timeout=1, retries=60):
+    def await_service_absence(self, service_name, timeout=1, retries=60):
+        """
+        Waits until service become absent.
+        :param service_name: str service short name
+        :param timeout: int timeout between retries in seconds
+        :param retries: int number of retries
+        :return: bool whether service is finally absent
+        """
         for i in range(retries):
-            if not self.service_exists():
+            if not self.service_exists(service_name):
                 return True
 
             self.logger.info(
                 'Awaiting service {service_name} at cluster {cluster_name} '
                 'to be deleted (retries left: {left})...'.format(
-                    service_name=self.get_service_name(),
+                    service_name=self.get_service_name(service_name),
                     cluster_name=self.get_cluster_name(),
                     left=retries-i,
                 ))
@@ -426,116 +504,124 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         @task
         def describe_task_defs(ctx):
             """Describes task definitions."""
-            for arn in self.get_task_def_arns():
-                response = self.client.describe_task_definition(taskDefinition=arn)
-                ctx.info('Task definition of {}:'.format(arn))
-                ctx.pp.pprint(response['taskDefinition'])
+            for task_name in self.get_task_def_names():
+                for arn in self.get_task_def_arns(task_name):
+                    response = self.client.describe_task_definition(taskDefinition=arn)
+                    ctx.info('Task definition of {}:'.format(arn))
+                    ctx.pp.pprint(response['taskDefinition'])
 
-        @task(iterable=['env'])
-        def list_hosts(ctx, env=None):
-            """Lists access hosts, use --env=* for all environments."""
-            for app_env in self.envs_from_string(env):
-                ctx.info('Available access hosts for {} environment:'.format(app_env))
-                ctx.pp.pprint(self.get_access_hosts(app_env))
+        @task
+        def list_hosts(ctx):
+            """Lists access hosts for the current environment."""
+            ctx.info('Available access hosts for {} environment:'.format(self.get_current_env()))
+            ctx.pp.pprint(self.get_access_hosts())
 
-        @task(iterable=['env'])
-        def register_task(ctx, env):
+        @task
+        def register_tasks(ctx):
             """Registers main task definition."""
-            for app_env in self.envs_from_string(env):
-                task_def = self.register_task(app_env)
+            for task_name in self.get_task_def_names():
+                task_def = self.register_task(task_name)
                 ctx.info('Tasks definition {family}:{revision} successfully created for {env} environment.'.format(
                     family=task_def['family'],
                     revision=task_def['revision'],
-                    env=app_env,
+                    env=self.get_current_env(),
                 ))
 
         @task
-        def create_service(ctx):
-            """Creates service for the latest task definition"""
-            if not self.service_exists():
-                self.create_service()
-                ctx.info('Service {service_name} at cluster {cluster_name} successfully created.'.format(
-                    service_name=self.get_service_name(),
+        def create_services(ctx):
+            """Creates services for the latest task definitions"""
+            for service_name in self.get_services_names():
+                if not self.service_exists(service_name):
+                    self.create_service(service_name)
+                    ctx.info('Service {service_name} at cluster {cluster_name} successfully created.'.format(
+                        service_name=self.get_service_name(service_name),
+                        cluster_name=self.get_cluster_name(),
+                    ))
+                else:
+                    ctx.info('Service {service_name} at cluster {cluster_name} already exists.'.format(
+                        service_name=self.get_service_name(service_name),
+                        cluster_name=self.get_cluster_name(),
+                    ))
+
+        @task
+        def start_services(ctx):
+            """Starts the ECS services"""
+            for service_name in self.get_services_names():
+                self.start_service(service_name)
+                ctx.info('Requested service {service_name} start at cluster {cluster_name}.'.format(
+                    service_name=self.get_service_name(service_name),
                     cluster_name=self.get_cluster_name(),
                 ))
-            else:
-                ctx.info('Service {service_name} at cluster {cluster_name} already exists.'.format(
-                    service_name=self.get_service_name(),
+
+                is_server_started = self.await_service_running_count(
+                    service_name,
+                    self.get_tasks_count(service_name)
+                )
+                ctx.info('Service {service_name} at cluster {cluster_name} started: {started}'.format(
+                    service_name=self.get_service_name(service_name),
                     cluster_name=self.get_cluster_name(),
+                    started=is_server_started,
                 ))
 
         @task
-        def start_service(ctx):
-            """Starts the ECS service"""
-            self.start_service()
-            ctx.info('Requested service {service_name} start at cluster {cluster_name}.'.format(
-                service_name=self.get_service_name(),
-                cluster_name=self.get_cluster_name(),
-            ))
-
-            is_server_started = self.await_service_running_count(self.get_tasks_count())
-            ctx.info('Service {service_name} at cluster {cluster_name} started: {started}'.format(
-                service_name=self.get_service_name(),
-                cluster_name=self.get_cluster_name(),
-                started=is_server_started,
-            ))
-
-        @task
-        def stop_service(ctx):
-            """Stops the ECS service"""
-            self.stop_service()
-            ctx.info('Service {} stopped: {}'.format(
-                self.get_service_name(),
-                self.await_service_running_count(0),
-            ))
-
-        @task
-        def delete_service(ctx, force=False):
-            """Stops the ECS service"""
-            if not self.service_exists():
-                ctx.info('Service {service_name} at {cluster_name} does not exist, nothing to delete.'.format(
-                    service_name=self.get_service_name(),
-                    cluster_name=self.get_cluster_name(),
-                ))
-                return
-
-            ctx.info('Stopping service {service_name} at {cluster_name}...'.format(
-                service_name=self.get_service_name(),
-                cluster_name=self.get_cluster_name(),
-            ))
-            self.stop_service()
-
-            if not force:
-                service_stopped = self.await_service_running_count(0)
+        def stop_services(ctx):
+            """Stops the ECS services"""
+            for service_name in self.get_services_names():
+                self.stop_service(service_name)
                 ctx.info('Service {} stopped: {}'.format(
-                    self.get_service_name(),
-                    service_stopped,
+                    self.get_service_name(service_name),
+                    self.await_service_running_count(service_name, 0),
                 ))
 
-            ctx.info('Deliting service {service_name} at {cluster_name}...'.format(
-                service_name=self.get_service_name(),
-                cluster_name=self.get_cluster_name(),
-            ))
-            self.delete_service(force)
+        @task
+        def delete_services(ctx, force=False):
+            """Deletes the ECS services"""
+            for service_name in self.get_services_names():
+                service_full_name = self.get_service_name(service_name)
+                if not self.service_exists(service_name):
+                    ctx.info('Service {service_name} at {cluster_name} does not exist, nothing to delete.'.format(
+                        service_name=service_full_name,
+                        cluster_name=self.get_cluster_name(),
+                    ))
+                    return
 
-            self.await_service_absence()
-            ctx.info('Service {service_name} at {cluster_name} successfully deleted.'.format(
-                service_name=self.get_service_name(),
-                cluster_name=self.get_cluster_name(),
-            ))
+                ctx.info('Stopping service {service_name} at {cluster_name}...'.format(
+                    service_name=service_full_name,
+                    cluster_name=self.get_cluster_name(),
+                ))
+                self.stop_service(service_name)
 
-        @task(delete_service, register_task, create_service, start_service)
+                if not force:
+                    service_stopped = self.await_service_running_count(service_name, 0)
+                    ctx.info('Service {} stopped: {}'.format(
+                        service_full_name,
+                        service_stopped,
+                    ))
+
+                ctx.info('Deliting service {service_name} at {cluster_name}...'.format(
+                    service_name=service_full_name,
+                    cluster_name=self.get_cluster_name(),
+                ))
+                self.delete_service(service_name, force)
+
+                self.await_service_absence(service_name)
+                ctx.info('Service {service_name} at {cluster_name} successfully deleted.'.format(
+                    service_name=service_full_name,
+                    cluster_name=self.get_cluster_name(),
+                ))
+
+        @task(delete_services, register_tasks, create_services, start_services)
         def deploy(ctx):
-            """Deploys service to the default cluster removing old service if necessary"""
-            ctx.info('Service {service_name} successfully deployed to cluster {cluster_name}.'.format(
-                service_name=self.get_service_name(),
+            """Deploys services to the default cluster removing old service if necessary"""
+            ctx.info('Services {services_names} successfully deployed to cluster {cluster_name}.'.format(
+                services_names=self.get_services_names(),
                 cluster_name=self.get_cluster_name(),
             ))
 
         return [
             list_clusters, describe_clusters, describe_task_defs,
-            register_task,
-            create_service, start_service, stop_service, delete_service,
+            register_tasks,
+            create_services, start_services, stop_services, delete_services,
             list_hosts,
             deploy,
         ]
