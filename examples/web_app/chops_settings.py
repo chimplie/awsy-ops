@@ -64,6 +64,9 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS Application Auto Scaling Service plugin
     'chops.plugins.aws.aws_app_scale',
 
+    # Uncomment to use AWS EC2 Auto Scaling Service plugin
+    'chops.plugins.aws.aws_ec2_scale',
+
     # Uncomment to use AWS Elastic Beanstalk plugin
     'chops.plugins.aws.aws_ebt',
 
@@ -244,6 +247,27 @@ SETTINGS['aws_app_scale'] = {
             },
         },
     },
+}
+
+SETTINGS['aws_ec2_scale'] = {
+    'policies': {
+        'CPU': {
+            'PolicyType': 'TargetTrackingScaling',
+            'TargetTrackingConfiguration': {
+                'PredefinedMetricSpecification': {
+                    'PredefinedMetricType': 'ASGAverageCPUUtilization',
+                },
+                'TargetValue': 70,
+            }
+        }
+    },
+    'environments': {
+        'prod': {
+            'MinSize': 1,
+            'MaxSize': 2,
+            'DesiredCapacity': 2,
+        }
+    }
 }
 
 SETTINGS['aws_ebt'] = {

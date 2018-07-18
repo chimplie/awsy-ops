@@ -63,6 +63,9 @@ SETTINGS['plugins'] = [
     # Uncomment to use AWS Application Auto Scaling Service plugin
     # 'chops.plugins.aws.aws_app_scale',
 
+    # Uncomment to use AWS EC2 Auto Scaling Service plugin
+    # 'chops.plugins.aws.aws_ec2_scale',
+
     # Uncomment to use AWS Elastic Beanstalk plugin
     # 'chops.plugins.aws.aws_ebt',
 
@@ -132,8 +135,7 @@ SETTINGS['aws_elb'] = {
     'namespace': SETTINGS['aws']['project_name'],
     'target_groups': {
         #
-        # EXAMPLE: uncomment the following to create a group
-        #          targeting port 80 of the `frontserver` container.
+        # EXAMPLE: uncomment the following to create a default HTTP target group
         #
         # 'Web': {
         #     'Port': 80,
@@ -150,6 +152,11 @@ SETTINGS['aws_ecs'] = {
 
 SETTINGS['aws_app_scale'] = {
     'services': {},
+}
+
+SETTINGS['aws_ec2_scale'] = {
+    'policies': {},
+    'environments': {},
 }
 
 SETTINGS['aws_ebt'] = {
