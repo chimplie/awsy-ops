@@ -41,6 +41,7 @@ setup(
         'chops.plugins',
         'chops.plugins.aws',
         'chops.plugins.dotenv',
+        'chops.plugins.local',
     ],
     install_requires=[
         'markdown>=2.0',

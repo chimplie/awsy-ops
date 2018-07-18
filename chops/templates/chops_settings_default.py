@@ -62,6 +62,10 @@ SETTINGS['plugins'] = [
 
     # Uncomment to use AWS Elastic Beanstalk plugin
     # 'chops.plugins.aws.aws_ebt',
+
+    # Uncomment to use local tasks
+    # (we suggest to postpone initialization of this plugin as much as possible)
+    'chops.plugins.local',
 ]
 
 
@@ -71,6 +75,10 @@ SETTINGS['dotenv'] = {
     },
     'template': os.path.join(chops.utils.PLUGINS_PATH, 'dotenv', 'env.template'),
     'template_lock': os.path.join(SETTINGS['project_path'], 'env.template.lock'),
+}
+
+SETTINGS['local'] = {
+    'module': 'chops_tasks'
 }
 
 SETTINGS['docker'] = {

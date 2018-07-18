@@ -2,6 +2,7 @@ import importlib
 import os
 import pprint
 from shutil import copyfile
+import sys
 from typing import Dict, List
 
 from invoke import Collection, Program, task
@@ -36,6 +37,8 @@ class ChopsApplication(object):
         )
         self.init_store()
 
+        self.update_import_paths()
+
         self.plugins: Dict[Plugin] = {}
         self.load_plugins()
         self.ns: Collection = self.get_root_namespace()
@@ -61,6 +64,11 @@ class ChopsApplication(object):
 
     def init_store(self):
         self.store.init('installed_plugins', [])
+
+    def update_import_paths(self):
+        for path in [self.config['project_path']] + self.config['plugin_paths']:
+            if path not in sys.path:
+                sys.path.insert(-1, path)
 
     def load_plugins(self):
         if not self.config['is_initialised']:

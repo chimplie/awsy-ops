@@ -15,6 +15,9 @@ SETTINGS['project_description'] = 'Example Chops web application'
 # This path will be used as a project root:
 SETTINGS['project_path'] = HERE
 
+# You can list here paths from which plugins can be loaded in addition to the project path
+SETTINGS['plugin_paths'] = []
+
 # This path will be used for all build stuff:
 SETTINGS['build_path'] = os.path.join(HERE, '.build')
 
@@ -60,6 +63,10 @@ SETTINGS['plugins'] = [
 
     # Uncomment to use AWS Elastic Beanstalk plugin
     'chops.plugins.aws.aws_ebt',
+
+    # Uncomment to use local tasks
+    # (we suggest to postpone initialization of this plugin as much as possible)
+    'chops.plugins.local',
 ]
 
 
@@ -69,6 +76,10 @@ SETTINGS['dotenv'] = {
     },
     'template': os.path.join(SETTINGS['project_path'], 'env.template'),
     'template_lock': os.path.join(SETTINGS['project_path'], 'env.template.lock'),
+}
+
+SETTINGS['local'] = {
+    'module': 'chops_tasks'
 }
 
 SETTINGS['docker'] = {

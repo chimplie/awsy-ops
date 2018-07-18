@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from invoke import task
 
 import chops.core
-from chops import utils
 
 
 class DotEnvPlugin(chops.core.Plugin):
