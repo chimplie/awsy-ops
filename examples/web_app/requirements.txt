@@ -1,2 +1,2 @@
-git+https://github.com/chimplie/chops.git@v0.0.1-alpha.12
+git+https://github.com/chimplie/chops.git@v0.0.1-alpha.13
 -r server/api/requirements.txt
