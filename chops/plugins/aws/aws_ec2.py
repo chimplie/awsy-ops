@@ -112,6 +112,18 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
                     'ToPort': 80,
                     'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
                 },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 22,
+                    'ToPort': 22,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 30001,
+                    'ToPort': 60000,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
+                },
             ])
         assert ingress_response['ResponseMetadata']['HTTPStatusCode'] == 200
 
