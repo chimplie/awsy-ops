@@ -1,0 +1,19 @@
+---
+- name: Hockeynews Web Server
+  hosts: all
+  become: yes
+  become_method: sudo
+  gather_facts: False
+  pre_tasks:
+    - name: Install python for Ansible
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+      changed_when: False
+    - setup: # aka gather_facts
+  roles:
+    - base
+    - nginx
+    - { role: "nickjj.docker", tags: "docker" }
+    - { role: kotarella1110.awscli }
+    # For now we don't need these roles since those parts of our application are dockerized
+#    - python
+#    - nodejs

@@ -1,0 +1,28 @@
+- name: Install base packages
+  apt: name={{ item }} state=present
+  with_items:
+    - locales
+    - build-essential
+    - acl
+    - ntp
+    - htop
+    - git
+    - supervisor
+    - python-pip
+    - python3-pip
+  tags:
+    - packages
+- name: Upgrade pip
+  pip: name=pip state=latest
+  tags:
+    - packages
+- name: Create deploy user
+  user:
+    name: "{{ deploy_user }}"
+    comment: "The user used to deploy applications"
+    state: present
+- name: Create .ssh folder for deploy user
+  file:
+    path: "/home/{{ deploy_user }}/.ssh/"
+    state: directory
+    mode: 0755

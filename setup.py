@@ -42,6 +42,7 @@ setup(
         'chops.plugins.aws',
         'chops.plugins.dotenv',
         'chops.plugins.local',
+        'chops.plugins.ansible',
     ],
     install_requires=[
         'markdown>=2.0',

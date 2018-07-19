@@ -1,3 +1,4 @@
 include README.rst
 include chops/VERSION
 include chops/plugins/dotenv/env.template
+include chops/plugins/ansible/templates/*
