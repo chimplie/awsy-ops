@@ -28,11 +28,22 @@ SETTINGS['log_dir'] = os.path.join(HERE, '.logs')
 SETTINGS['plugins'] = [
     'chops.plugins.dotenv',
 
-    # Uncomment to use Docker plugin
-    'chops.plugins.docker',
+    # ----------------------------
+    # Put your CI plugins here
+    # ----------------------------
 
     # Uncomment to use Travis CI plugin
     # 'chops.plugins.travis',
+
+    # Uncomment to use Bitbucket Pipelines plugin
+    # 'chops.plugins.bitbucket',
+
+    # ----------------------------
+    # End of CI plugins
+    # ----------------------------
+
+    # Uncomment to use Docker plugin
+    'chops.plugins.docker',
 
     # Uncomment to use AWS plugin
     'chops.plugins.aws',
@@ -87,6 +98,10 @@ SETTINGS['dotenv'] = {
     'template': os.path.join(SETTINGS['project_path'], 'env.template'),
     'template_lock': os.path.join(SETTINGS['project_path'], 'env.template.lock'),
 }
+
+SETTINGS['travis'] = {}
+
+SETTINGS['bitbucket'] = {}
 
 SETTINGS['local'] = {
     'module': 'chops_tasks'

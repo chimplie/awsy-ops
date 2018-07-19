@@ -10,18 +10,17 @@ class DockerPlugin(chops.core.Plugin):
     dependencies = ['dotenv']
     required_keys = ['docker_root', 'project_name']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.config['tag'] = os.environ.get('DOCKER_TAG', self.app.config.get('build_number', 'local'))
+    def get_tag(self):
+        return os.environ.get('DOCKER_TAG', self.app.config.get('build_number', 'local'))
 
     def get_docker_command(self, *args: str):
-        return 'cd {docker_root} && docker-compose {params} {args}'.format(
+        return 'cd {docker_root} && DOCKER_TAG={tag} docker-compose {params} {args}'.format(
             docker_root=self.config['docker_root'],
             params=' '.join([
                 '--project-name={}'.format(self.config['project_name'])
             ]),
-            args=' '.join(args)
+            args=' '.join(args),
+            tag=self.get_tag(),
         )
 
     def get_tasks(self):
@@ -62,7 +61,7 @@ class DockerPluginMixin:
         return self.app.plugins['docker'].config['project_name']
 
     def get_docker_tag(self):
-        return self.app.plugins['docker'].config['tag']
+        return self.app.plugins['docker'].get_tag()
 
 
 PLUGIN_CLASS = DockerPlugin
