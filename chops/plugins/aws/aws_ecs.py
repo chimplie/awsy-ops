@@ -425,7 +425,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         if service is not None:
             return service['runningCount']
 
-    def await_service_running_count(self, service_name, count, timeout=1, retries=60):
+    def await_service_running_count(self, service_name, count, timeout=1, retries=90):
         """
         Awaits service running count became equal to the specified value
         :param service_name: str service short name
@@ -473,7 +473,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
             service_name=full_service_name,
         ))
 
-    def await_service_absence(self, service_name, timeout=1, retries=60):
+    def await_service_absence(self, service_name, timeout=1, retries=90):
         """
         Waits until service become absent.
         :param service_name: str service short name
