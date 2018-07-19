@@ -91,6 +91,30 @@ class ChopsApplication(object):
         for plugin in self.plugins.values():
             plugin.register_tasks(self.ns)
 
+    @classmethod
+    def run_invoke_task(cls, invoke_task, *args, **kwargs):
+        for sub_task in invoke_task.pre:
+            cls.run_invoke_task(sub_task, *args, **kwargs)
+
+        invoke_task(*args, **kwargs)
+
+        for sub_task in invoke_task.post:
+            cls.run_invoke_task(sub_task, *args, **kwargs)
+
+    def get_tasks(self):
+        return {task_path: self.get_task(task_path) for task_path in self.program.collection.task_names}
+
+    def get_task(self, task_path):
+        path_parts = task_path.split('.')
+        if len(path_parts) == 1:
+            return self.program.collection.tasks[task_path]
+        elif len(path_parts) == 2:
+            plugin_name, task_name = path_parts
+            return self.program.collection.collections[plugin_name].tasks[task_name]
+
+    def run_task(self, task_path, *args, **kwargs):
+        self.run_invoke_task(self.get_task(task_path), *args, **kwargs)
+
     @staticmethod
     def info(x):
         print('\033[94m' + x + '\033[0m')

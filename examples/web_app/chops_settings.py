@@ -215,11 +215,21 @@ SETTINGS['aws_ecs'] = {
 }
 
 SETTINGS['aws_app_scale'] = {
+    'environments': {
+        'prod': {
+            'Web': {
+                'target': {
+                    'MinCapacity': 1,
+                    'MaxCapacity': 2,
+                },
+            },
+        },
+    },
     'services': {
         'Web': {
             'target': {
                 'MinCapacity': 1,
-                'MaxCapacity': 2,
+                'MaxCapacity': 1,
             },
             'policies': {
                 'CPU': {

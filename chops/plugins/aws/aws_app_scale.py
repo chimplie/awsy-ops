@@ -3,6 +3,7 @@ from invoke import task
 from chops.plugins.aws.aws_ecs import AwsEcsPluginMixin
 from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
 from chops.plugins.aws.aws_service_plugin import AwsServicePlugin
+from chops.utils import deep_merge
 
 
 class AwsAppScalePlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEcsPluginMixin):
@@ -15,7 +16,12 @@ class AwsAppScalePlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEcsPluginMixin)
         return list(self.config['services'].keys())
 
     def get_ecs_scalable_service_config(self, service_name):
-        return self.config['services'][service_name]
+        config = self.config['services'][service_name]
+        try:
+            env_config = self.config['environments'][self.get_current_env()][service_name]
+        except KeyError:
+            env_config = {}
+        return deep_merge(config, env_config)
 
     def get_ecs_service_resource_id(self, service_name):
         return 'service/{cluster}/{service}'.format(

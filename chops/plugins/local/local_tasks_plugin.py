@@ -24,7 +24,7 @@ class LocalTasksPlugin(chops.core.Plugin):
 
     def get_tasks(self):
         mod = importlib.import_module(self.config['module'])
-        return mod.tasks(self.app, self.logger)
+        return mod.tasks(self.app)
 
 
 PLUGIN_CLASS = LocalTasksPlugin
