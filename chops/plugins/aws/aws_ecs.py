@@ -2,18 +2,17 @@ import time
 
 from invoke import task
 
-from chops.plugins.aws.aws_container_service_plugin import AwsContainerServicePlugin
+from chops.plugins.aws.aws_env_bound_service_plugin import AwsEnvBoundServicePlugin
 from chops.plugins.aws.aws_ec2 import AwsEc2PluginMixin
 from chops.plugins.aws.aws_ecr import AwsEcrPluginMixin
 from chops.plugins.aws.aws_elb import AwsElbPluginMixin
-from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
 from chops.plugins.aws.aws_logs import AwsLogsPluginMixin
 from chops.plugins.aws.aws_s3 import AwsS3PluginMixin
 from chops.plugins.docker import DockerPluginMixin
 
 
-class AwsEcsPlugin(AwsContainerServicePlugin,
-                   AwsEcrPluginMixin, AwsEnvsPluginMixin, AwsLogsPluginMixin,
+class AwsEcsPlugin(AwsEnvBoundServicePlugin,
+                   AwsEcrPluginMixin, AwsLogsPluginMixin,
                    AwsElbPluginMixin, AwsS3PluginMixin, AwsEc2PluginMixin,
                    DockerPluginMixin):
     name = 'aws_ecs'
@@ -35,6 +34,14 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         """
         return list(self.config['services'].keys())
 
+    def get_task_definition(self, task_name):
+        """
+        Returns task definition config specific to the current environment.
+        :param task_name: str task short name
+        :return: dict task definition
+        """
+        return self.config['task_definitions'][task_name]
+
     def get_containers(self, task_name):
         """
         Returns container definitions for the specified task
@@ -42,22 +49,16 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         :return: dict[] container definitions
         """
         env = self.get_current_env()
-        task_config = self.config['task_definitions'][task_name]
+        task_config = self.get_task_definition(task_name)
         containers = task_config['containers']
 
-        container_overrides = {}
-        if 'environments' in task_config:
-            env_config = task_config['environments'].get(env, {})
-            if 'container_overrides' in env_config:
-                container_overrides = env_config['container_overrides']
-
-        for container in containers:
+        for container_name, container in containers.items():
             if 'image' not in container:
                 if '__image__' in container:
                     image_name = container['__image__']
                     del container['__image__']
                 else:
-                    image_name = container['name']
+                    image_name = container_name
                 container['image'] = self.get_service_image_uri(image_name)
 
             if 'logConfiguration' not in container:
@@ -83,10 +84,13 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
                 ])
                 del container['__requires_aws_env_setup__']
 
-            if container['name'] in container_overrides:
-                container.update(container_overrides[container['name']])
+        #
+        aws_containers = []
+        for container_name in containers.keys():
+            aws_containers.append({'name': container_name, **containers[container_name]})
 
-        return containers
+        # Finally convert container definitions from dictionary to list format
+        return [{'name': name, **container} for name, container in containers.items()]
 
     def get_access_hosts(self):
         """
@@ -123,7 +127,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         :param task_name: str task short name
         :return: dict[] list of volumes
         """
-        return self.config['task_definitions'][task_name].get('volumes', [])
+        return self.get_task_definition(task_name).get('volumes', [])
 
     def get_cluster_prefix(self):
         """
@@ -184,23 +188,13 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         return [cluster for cluster in response.get('clusterArns', [])
                 if ':cluster/' + self.get_cluster_prefix() in cluster]
 
-    def get_service_env_config(self, service_name):
-        """
-        Returns current environment config if exists or an empty dictionary.
-        :param service_name: str service short name
-        :return: dict environment config
-        """
-        return self.config['services'][service_name] \
-            .get('environments', {}) \
-            .get(self.get_current_env(), {})
-
     def get_load_balancers(self, service_name):
         """
         Returns load balancers config if exists or an empty list.
         :param service_name: str service short name
         :return: dict[] load balancers config
         """
-        balancers = self.get_service_env_config(service_name).get('load_balancers', [])
+        balancers = self.get_service_config(service_name).get('load_balancers', [])
         for balancer in balancers:
             if 'targetGroupArn' not in balancer:
                 if '__target_group__' in balancer:
@@ -233,12 +227,7 @@ class AwsEcsPlugin(AwsContainerServicePlugin,
         :param service_name: str service short name
         :return: int tasks count
         """
-        env = self.get_current_env()
-        service_config = self.get_service_config(service_name)
-        if 'tasks_count' in service_config.get('environments', {}).get(env, {}):
-            return service_config['environments'][env]['tasks_count']
-        else:
-            return service_config.get('tasks_count', 1)
+        return self.get_service_config(service_name).get('tasks_count', 1)
 
     def get_container_instances(self, cluster_name):
         """

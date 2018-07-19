@@ -161,34 +161,16 @@ SETTINGS['aws_ecs'] = {
     'namespace': SETTINGS['aws']['project_name'],
     'task_definitions': {
         'Web': {
-            'environments': {
-                'prod': {
-                    'container_overrides': {
-                        'apiserver': {
-                            'memory': 250,
-                        },
-                        'webclient': {
-                            'memory': 100,
-                        },
-                        'frontserver': {
-                            'memory': 100,
-                        }
-                    },
-                },
-            },
-            'containers': [
-                {
-                    'name': 'apiserver',
+            'containers': {
+                'apiserver': {
                     '__image__': 'apiserver',
                     'essential': True,
                     '__requires_aws_env_setup__': True,
                 },
-                {
-                    'name': 'webclient',
+                'webclient': {
                     'essential': True,
                 },
-                {
-                    'name': 'frontserver',
+                'frontserver': {
                     'portMappings': [
                         {
                             'containerPort': 8080,
@@ -202,15 +184,38 @@ SETTINGS['aws_ecs'] = {
                     ],
                     'essential': True,
                 },
-            ],
+            },
             'volumes': [],
         },
     },
     'services': {
         'Web': {
             'task_definition': 'Web',
-            'environments': {
-                'prod': {
+            'config': {
+                'healthCheckGracePeriodSeconds': 60,
+            },
+            'tasks_count': 1,
+        }
+    },
+    '__environments__': {
+        'prod': {
+            'task_definitions': {
+                'Web': {
+                    'containers': {
+                        'apiserver': {
+                            'memory': 250,
+                        },
+                        'webclient': {
+                            'memory': 100,
+                        },
+                        'frontserver': {
+                            'memory': 100,
+                        },
+                    },
+                },
+            },
+            'services': {
+                'Web': {
                     'tasks_count': 1,
                     'load_balancers': [
                         {
@@ -218,19 +223,15 @@ SETTINGS['aws_ecs'] = {
                             'containerName': 'frontserver',
                             'containerPort': 8080,
                         },
-                    ]
+                    ],
                 },
             },
-            'config': {
-                'healthCheckGracePeriodSeconds': 60,
-            },
-            'tasks_count': 1,
-        }
+        },
     },
 }
 
 SETTINGS['aws_app_scale'] = {
-    'environments': {
+    '__environments__': {
         'prod': {
             'Web': {
                 'target': {
@@ -286,13 +287,17 @@ SETTINGS['aws_ec2_scale'] = {
             }
         }
     },
-    'environments': {
+    'group_config': {
+        'MinSize': 1,
+    },
+    '__environments__': {
         'prod': {
-            'MinSize': 1,
-            'MaxSize': 2,
-            'DesiredCapacity': 2,
-        }
-    }
+            'group_config': {
+                'MaxSize': 2,
+                'DesiredCapacity': 2,
+            },
+        },
+    },
 }
 
 SETTINGS['aws_ebt'] = {

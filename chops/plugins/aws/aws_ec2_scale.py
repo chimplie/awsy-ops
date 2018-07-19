@@ -1,15 +1,14 @@
 from invoke import task
 
 from chops.plugins.aws.aws_ecs import AwsEcsPluginMixin
-from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
-from chops.plugins.aws.aws_service_plugin import AwsServicePlugin
+from chops.plugins.aws.aws_env_bound_service_plugin import AwsEnvBoundServicePlugin
 
 
-class AwsEc2ScalePlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEcsPluginMixin):
+class AwsEc2ScalePlugin(AwsEnvBoundServicePlugin, AwsEcsPluginMixin):
     name = 'aws_ec2_scale'
     dependencies = ['aws', 'aws_envs', 'aws_ec2', 'aws_ecs']
     service_name = 'autoscaling'
-    required_keys = ['policies', 'environments']
+    required_keys = ['policies', 'group_config']
 
     def get_policies_short_names(self):
         """
@@ -19,6 +18,11 @@ class AwsEc2ScalePlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEcsPluginMixin)
         return list(self.config['policies'].keys())
 
     def get_ecs_policy_full_name(self, policy_name):
+        """
+        Returns full ECS scaling policy name.
+        :param policy_name: str policy short name
+        :return: str policy full name
+        """
         return '{}-{}'.format(self.get_ecs_cluster_name(), policy_name)
 
     def get_ecs_autoscaling_groups_names(self):
@@ -87,12 +91,10 @@ class AwsEc2ScalePlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEcsPluginMixin)
         Updates settings for the specified autoscaling of the current environment.
         :param group_name: str autoscaling group name
         """
-        app_env = self.get_current_env()
-        if app_env in self.config['environments']:
-            self.client.update_auto_scaling_group(
-                AutoScalingGroupName=group_name,
-                **self.config['environments'][app_env]
-            )
+        self.client.update_auto_scaling_group(
+            AutoScalingGroupName=group_name,
+            **self.config['group_config']
+        )
 
     def get_tasks(self):
         @task

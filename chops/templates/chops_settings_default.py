@@ -171,7 +171,7 @@ SETTINGS['aws_app_scale'] = {
 
 SETTINGS['aws_ec2_scale'] = {
     'policies': {},
-    'environments': {},
+    'group_config': {},
 }
 
 SETTINGS['aws_ebt'] = {

@@ -1,19 +1,35 @@
 from invoke import task
 
-from chops.plugins.aws.aws_container_service_plugin import AwsContainerServicePlugin
+from chops.plugins.aws.aws_service_plugin import AwsServicePlugin
 from chops.plugins.docker import DockerPluginMixin
 
 
-class AwsEcrPlugin(AwsContainerServicePlugin, DockerPluginMixin):
+class AwsEcrPlugin(AwsServicePlugin, DockerPluginMixin):
     name = 'aws_ecr'
     dependencies = ['aws', 'docker']
     service_name = 'ecr'
     required_keys = ['services']
 
     def get_service_repo_name(self, service_name):
+        """
+        Returns service repository name.
+        :param service_name: str service short name
+        :return: str repository name
+        """
         return '{project_name}/{service_name}'.format(
             service_name=service_name,
             project_name=self.get_aws_project_name()
+        )
+
+    def get_service_path(self, service_name):
+        """
+        Returns service path.
+        :param service_name: str service short name
+        :return: str service path
+        """
+        return '{project_name}/{service_name}'.format(
+            project_name=self.get_aws_project_name(),
+            service_name=service_name,
         )
 
     def describe_repositories(self):

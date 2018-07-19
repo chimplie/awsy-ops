@@ -1,12 +1,10 @@
 from invoke import task
 
 from chops.plugins.aws.aws_ecs import AwsEcsPluginMixin
-from chops.plugins.aws.aws_envs import AwsEnvsPluginMixin
-from chops.plugins.aws.aws_service_plugin import AwsServicePlugin
-from chops.utils import deep_merge
+from chops.plugins.aws.aws_env_bound_service_plugin import AwsEnvBoundServicePlugin
 
 
-class AwsAppScalePlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEcsPluginMixin):
+class AwsAppScalePlugin(AwsEnvBoundServicePlugin, AwsEcsPluginMixin):
     name = 'aws_app_scale'
     dependencies = ['aws', 'aws_envs', 'aws_ec2', 'aws_ecs']
     service_name = 'application-autoscaling'
@@ -16,12 +14,7 @@ class AwsAppScalePlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEcsPluginMixin)
         return list(self.config['services'].keys())
 
     def get_ecs_scalable_service_config(self, service_name):
-        config = self.config['services'][service_name]
-        try:
-            env_config = self.config['environments'][self.get_current_env()][service_name]
-        except KeyError:
-            env_config = {}
-        return deep_merge(config, env_config)
+        return self.config['services'][service_name]
 
     def get_ecs_service_resource_id(self, service_name):
         return 'service/{cluster}/{service}'.format(
