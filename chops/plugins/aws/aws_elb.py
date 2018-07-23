@@ -450,17 +450,17 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
 
 
 class AwsElbPluginMixin:
-    def get_balancer_arn(self, env=None):
-        return self.app.plugins['aws_elb'].get_balancer_arn(env)
+    def get_balancer_arn(self):
+        return self.app.plugins['aws_elb'].get_balancer_arn()
 
-    def get_target_group_arn(self, short_name, env=None):
-        return self.app.plugins['aws_elb'].get_target_group_arn(short_name, env=env)
+    def get_target_group_arn(self, short_name):
+        return self.app.plugins['aws_elb'].get_target_group_arn(short_name)
 
-    def get_balancer_dns(self, env=None):
-        return self.app.plugins['aws_elb'].get_balancer_dns(env)
+    def get_balancer_dns(self):
+        return self.app.plugins['aws_elb'].get_balancer_dns()
 
-    def balancer_exists(self, env=None):
-        return self.app.plugins['aws_elb'].balancer_exists(env)
+    def balancer_exists(self):
+        return self.app.plugins['aws_elb'].balancer_exists()
 
 
 PLUGIN_CLASS = AwsElbPlugin
