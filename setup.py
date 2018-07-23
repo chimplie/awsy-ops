@@ -54,7 +54,7 @@ setup(
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['chops = chops:program.run']
+        'console_scripts': ['chops = chops.entry_point:program.run']
     },
     include_package_data=True,
     zip_safe=False
