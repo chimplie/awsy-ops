@@ -105,7 +105,7 @@ class AwsEcsPlugin(AwsEnvBoundServicePlugin,
 
         # Add balancer DNS name if exists
         if self.balancer_exists():
-            get_access_hosts.add(self.get_balancer_dns(env))
+            get_access_hosts.add(self.get_balancer_dns())
 
         # Iterate over EC2 instances
         for container_instance in self.get_container_instances(self.get_cluster_name(env)):
