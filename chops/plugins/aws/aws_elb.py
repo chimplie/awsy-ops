@@ -12,48 +12,52 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
     name = 'aws_elb'
     dependencies = ['aws', 'aws_envs', 'aws_ec2']
     service_name = 'elbv2'
-    required_keys = ['namespace', 'target_groups']
+    required_keys = ['namespace', 'target_groups', 'security_group']
 
-    def get_balancer_name(self, env=None):
+    def get_balancer_name(self):
         """
-        Returns load balancer name for the specified or current environment.
-        :param env: str | None environment name, None for the current environment
+        Returns load balancer name for the current environment.
         :return: str balancer name
         """
         return '{}-{}'.format(
             self.config['namespace'],
-            env or self.get_current_env(),
+            self.get_current_env(),
         )
 
-    def get_target_group_fully_qualified_name(self, short_name, env=None):
+    def get_security_group_short_name(self):
         """
-        Returns the fully qualified name of the target group for the specified environment.
+        Returns load balancer security group short name.
+        :return: str security group short name.
+        """
+        return self.config['security_group']
+
+    def get_target_group_fully_qualified_name(self, short_name):
+        """
+        Returns the fully qualified name of the target group for the current environment.
         :param short_name: str short name of the target group
-        :param env: str | None environment name, None for the current environment
         :return: str full name of the target group
         """
         return '{}-{}'.format(
-            self.get_balancer_name(env),
+            self.get_balancer_name(),
             short_name,
         )
 
-    def get_target_group_name(self, short_name, env=None):
+    def get_target_group_name(self, short_name):
         """
-        Returns the unique name of the target group for the specified environment.
+        Returns the unique name of the target group for the current environment.
         The difference between this function and `get_target_group_fully_qualified_name`
         is that fits the name into 32 characters.
         :param short_name: str short name of the target group
-        :param env: str | None environment name, None for the current environment
         :return: str full name of the target group
         """
-        env = env or self.get_current_env()
-        full_name = self.get_target_group_fully_qualified_name(short_name, env=env)
+        app_env = self.get_current_env()
+        full_name = self.get_target_group_fully_qualified_name(short_name)
         namespace = self.config['namespace']
 
         if len(full_name) <= 32:
             return full_name
         elif len(namespace) + 10 <= 32:
-            env_target_hash = hashlib.md5((short_name + env).encode()).hexdigest()[:9]
+            env_target_hash = hashlib.md5((short_name + app_env).encode()).hexdigest()[:9]
             return '{}-{}'.format(namespace, env_target_hash)
         else:
             return hashlib.md5(full_name.encode()).hexdigest()
@@ -65,15 +69,14 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
         """
         return self.config['target_groups']
 
-    def get_balancer_info(self, env=None):
+    def get_balancer_info(self):
         """
-        Returns load balancer details for the specified environment.
-        :param env: str | None environment name, None for the current environment
+        Returns load balancer details for the current environment.
         :return: dict balancer details
         """
         try:
             response = self.client.describe_load_balancers(
-                Names=[self.get_balancer_name(env)],
+                Names=[self.get_balancer_name()],
             )
             assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
@@ -82,106 +85,96 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
 
             return balancers[0]
         except ClientError:
-            self.logger.debug('Unable to find load balancer {}.'.format(self.get_balancer_name(env)))
+            self.logger.debug('Unable to find load balancer {}.'.format(self.get_balancer_name()))
             return None
 
-    def balancer_exists(self, env=None):
+    def balancer_exists(self):
         """
-        Returns whether load balancer exists in the specified environment.
-        :param env: str | None environment name, None for the current environment
+        Returns whether load balancer exists in the current environment.
         :return: bool whether balancer exists or not
         """
-        return self.get_balancer_info(env) is not None
+        return self.get_balancer_info() is not None
 
-    def get_balancer_arn(self, env=None):
+    def get_balancer_arn(self):
         """
-        Returns load balancer ARN for the specified environment.
-        :param env: str | None environment name, None for the current environment
+        Returns load balancer ARN for the current environment.
         :return: str balancer ARN
         """
-        return self.get_balancer_info(env)['LoadBalancerArn']
+        return self.get_balancer_info()['LoadBalancerArn']
 
-    def get_balancer_dns(self, env=None):
+    def get_balancer_dns(self):
         """
-        Returns load balancer DNS name for the specified environment.
-        :param env: str | None environment name, None for the current environment
+        Returns load balancer DNS name for the current environment.
         :return: str balancer DNS name
         """
-        return self.get_balancer_info(env)['DNSName']
+        return self.get_balancer_info()['DNSName']
 
-    def get_target_group_info(self, short_name, env=None):
+    def get_target_group_info(self, short_name):
         """
-        Returns specified target group details for the selected environment (None for the current one).
+        Returns specified target group details for the current environment.
         :param short_name: str target group short name
-        :param env: str | None environment name, None for the current environment
         :return: dict target group details
         """
         try:
             response = self.client.describe_target_groups(
-                Names=[self.get_target_group_name(short_name, env=env)],
+                Names=[self.get_target_group_name(short_name)],
             )
             assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
             return response['TargetGroups'][0]
         except ClientError:
             self.logger.debug('Unable to find load balancer {balancer} target group {group}.'.format(
-                balancer=self.get_balancer_name(env),
-                group=self.get_target_group_name(short_name, env=env)
+                balancer=self.get_balancer_name(),
+                group=self.get_target_group_name(short_name)
             ))
             return None
 
-    def get_target_groups_info(self, env=None):
+    def get_target_groups_info(self):
         """
-        Returns all target groups details for the selected environment (None for the current one).
-        :param env: str | None environment name, None for the current environment
+        Returns all target groups details for the current environment.
         :return: dict[] target groups details
         """
-        env = env or self.get_current_env()
         target_groups_config = self.get_target_groups_config()
         groups_info = {}
 
         for short_name in target_groups_config.keys():
-            target_group_name = self.get_target_group_name(short_name, env=env)
-            data = self.get_target_group_info(short_name, env=env)
+            target_group_name = self.get_target_group_name(short_name)
+            data = self.get_target_group_info(short_name)
             if data is not None:
                 groups_info[target_group_name] = data
 
         return groups_info
 
-    def target_group_exists(self, short_name, env=None):
+    def target_group_exists(self, short_name):
         """
-        Returns whether target group exists in the environment.
+        Returns whether target group exists in the current environment.
         :param short_name: str target group short name
-        :param env: str | None environment name, None for the current environment
         :return: bool whether target group exists
         """
-        return self.get_target_group_info(short_name, env=env) is not None
+        return self.get_target_group_info(short_name) is not None
 
-    def get_target_group_arn(self, short_name, env=None):
+    def get_target_group_arn(self, short_name):
         """
-        Returns target group ARN for the specified environment (None for the current one).
+        Returns target group ARN for the current environment.
         :param short_name: str target group short name
-        :param env: str | None environment name, None for the current environment
         :return: str target group ARN
         """
-        target_group_info = self.get_target_group_info(short_name, env=env)
+        target_group_info = self.get_target_group_info(short_name)
         return target_group_info['TargetGroupArn']
 
-    def create_balancer(self, env=None):
+    def create_balancer(self):
         """
-        Creates load balancer in the specified environment (None for the current one).
-        :param env: str | None environment name, None for the current environment
+        Creates load balancer in the current environment.
         :return: dict balancer info
         """
-        env = env or self.get_current_env()
-
-        balancer_name = self.get_balancer_name(env)
+        app_env = self.get_current_env()
+        balancer_name = self.get_balancer_name()
         subnet_ids = self.get_subnet_ids()
 
         response = self.client.create_load_balancer(
             Name=balancer_name,
             Subnets=subnet_ids,
-            SecurityGroups=[self.get_security_group_id()],
+            SecurityGroups=[self.get_security_group_id(self.get_security_group_short_name())],
             Scheme='internet-facing',
             Tags=[
                 {
@@ -190,7 +183,7 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
                 },
                 {
                     'Key': 'environment',
-                    'Value': env,
+                    'Value': app_env,
                 },
             ],
             Type='application',
@@ -200,33 +193,29 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
 
         return response['LoadBalancers'][0]
 
-    def delete_balancer(self, env=None):
+    def delete_balancer(self):
         """
-        Deletes load balancer in the specified environment (None for the current one).
-        :param env: str | None environment name, None for the current environment
+        Deletes load balancer in the current environment.
         """
-        env = env or self.get_current_env()
         response = self.client.delete_load_balancer(
-            LoadBalancerArn=self.get_balancer_arn(env)
+            LoadBalancerArn=self.get_balancer_arn()
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
-    def create_target_groups(self, env=None):
+    def create_target_groups(self):
         """
-        Creates target groups for the specified environment (None for the current one).
-        :param env: str | None environment name, None for the current environment
+        Creates target groups for the current environment.
         :return: dict created target groups details
         """
-        env = env or self.get_current_env()
         target_groups_config = self.get_target_groups_config()
         vpc_id = self.get_vpc_id()
         response_data = {}
 
         for short_name in target_groups_config.keys():
-            target_group_name = self.get_target_group_name(short_name, env=env)
+            target_group_name = self.get_target_group_name(short_name)
 
-            if self.target_group_exists(short_name, env=env):
-                self.logger.info('Target group {} exists, skipping creation.'.format(target_group_name))
+            if self.target_group_exists(short_name):
+                self.logger.info(f'Target group {target_group_name} exists, skipping creation.')
                 continue
 
             response = self.client.create_target_group(
@@ -236,52 +225,48 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
             )
             assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
-            self.logger.info('Target group {} created.'.format(target_group_name))
+            self.logger.info(f'Target group {target_group_name} created.')
             response_data[target_group_name] = response['TargetGroups']
 
         return response_data
 
-    def delete_target_groups(self, env=None):
+    def delete_target_groups(self):
         """
-        Deletes target groups for the specified environment (None for the current one).
-        :param env: str | None environment name, None for the current environment
+        Deletes target groups for the current environment.
         """
-        env = env or self.get_current_env()
         target_groups_config = self.get_target_groups_config()
 
         for short_name in target_groups_config.keys():
-            if not self.target_group_exists(short_name, env=env):
+            if not self.target_group_exists(short_name):
                 self.logger.info('Target group {} does not exists, nothing to delete.'.format(
-                    self.get_target_group_name(short_name, env=env)
+                    self.get_target_group_name(short_name)
                 ))
                 continue
 
             response = self.client.delete_target_group(
-                TargetGroupArn=self.get_target_group_arn(short_name, env=env)
+                TargetGroupArn=self.get_target_group_arn(short_name)
             )
             assert response['ResponseMetadata']['HTTPStatusCode'] == 200
-            self.logger.info('Target group {} deleted.'.format(self.get_target_group_name(short_name, env=env)))
+            self.logger.info('Target group {} deleted.'.format(self.get_target_group_name(short_name)))
 
-    def create_listeners(self, env=None):
+    def create_listeners(self):
         """
-        Creates listeners for the default balancer of the specified environment (None for the current one).
-        :param env: str | None environment name, None for the current environment
+        Creates listeners for the default balancer of the current environment.
         :return: dict created listeners details
         """
-        env = env or self.get_current_env()
         target_groups_config = self.get_target_groups_config()
-        balancer_arn = self.get_balancer_arn(env)
+        balancer_arn = self.get_balancer_arn()
         response_data = {}
 
         for short_name in target_groups_config.keys():
-            target_group_name = self.get_target_group_name(short_name, env=env)
+            target_group_name = self.get_target_group_name(short_name)
 
             response = self.client.create_listener(
                 LoadBalancerArn=balancer_arn,
                 DefaultActions=[
                     {
                         'Type': 'forward',
-                        'TargetGroupArn': self.get_target_group_arn(short_name, env=env)
+                        'TargetGroupArn': self.get_target_group_arn(short_name)
                     }
                 ],
                 **target_groups_config[short_name],
@@ -290,20 +275,18 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
 
             self.logger.info('Target group {group} bound to {balancer} load balancer.'.format(
                 group=target_group_name,
-                balancer=self.get_balancer_name(env),
+                balancer=self.get_balancer_name(),
             ))
             response_data[target_group_name] = response['Listeners']
 
         return response_data
 
-    def describe_listeners(self, env=None):
+    def describe_listeners(self):
         """
-        Describes listeners for the default balancer of the specified environment (None for the current one).
-        :param env: str | None environment name, None for the current environment
+        Describes listeners for the default balancer of the current environment.
         :return: dict created listeners details
         """
-        env = env or self.get_current_env()
-        balancer_arn = self.get_balancer_arn(env)
+        balancer_arn = self.get_balancer_arn()
 
         response = self.client.describe_listeners(
             LoadBalancerArn=balancer_arn,
@@ -312,12 +295,11 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
 
         return response['Listeners']
 
-    def delete_listeners(self, env=None):
+    def delete_listeners(self):
         """
-        Deletes listeners for the default balancer of the specified environment (None for the current one).
-        :param env: str | None environment name, None for the current environment
+        Deletes listeners for the default balancer of the current environment.
         """
-        listeners_info = self.describe_listeners(env)
+        listeners_info = self.describe_listeners()
 
         for listener in listeners_info:
             response = self.client.delete_listener(
@@ -327,155 +309,143 @@ class AwsElbPlugin(AwsServicePlugin, AwsEnvsPluginMixin, AwsEc2PluginMixin):
 
             self.logger.info('Successfully deleted listener {listener_arn} for balancer {balancer}.'.format(
                 listener_arn=listener['ListenerArn'],
-                balancer=self.get_balancer_name(env),
+                balancer=self.get_balancer_name(),
             ))
 
     def get_tasks(self):
-        @task(iterable=['env'])
-        def create_balancer(ctx, env=None):
+        @task
+        def create_balancer(ctx):
             """
-            Creates balancer for current or specified environment[s].
-            Use --env=* for all environments
+            Creates balancer for current environment.
             """
-            for app_env in self.envs_from_string(env):
-                if not self.balancer_exists(app_env):
-                    data = self.create_balancer(app_env)
-                    ctx.info('Successfully created load balancer {}:'.format(self.get_balancer_name(app_env)))
-                    ctx.pp.pprint(data)
-                else:
-                    ctx.info('Load balancer {} already exists, nothing to create.'.format(
-                        self.get_balancer_name(app_env)
-                    ))
-
-        @task(iterable=['env'])
-        def delete_balancer(ctx, env=None):
-            """
-            Deletes balancer for current or specified environment[s].
-            Use --env=* for all environments
-            """
-            for app_env in self.envs_from_string(env):
-                if self.balancer_exists(app_env):
-                    self.delete_balancer(app_env)
-                    ctx.info('Successfully deleted load balancer {}:'.format(self.get_balancer_name(app_env)))
-                else:
-                    ctx.info('Load balancer {} does not exist, nothing to delete.'.format(
-                        self.get_balancer_name(app_env)
-                    ))
-
-        @task(iterable=['env'])
-        def describe_balancer(ctx, env=None):
-            """
-            Describes balancer for current or specified environment[s].
-            Use --env=* for all environments
-            """
-            for app_env in self.envs_from_string(env):
-                data = self.get_balancer_info(app_env)
-                if data is not None:
-                    ctx.info('Load balancer {} details:'.format(self.get_balancer_name(app_env)))
-                    ctx.pp.pprint(data)
-                else:
-                    ctx.info('Load balancer {} does not exist.'.format(self.get_balancer_name(app_env)))
-
-        @task(iterable=['env'])
-        def create_target_groups(ctx, env=None):
-            """
-            Creates load balancer target groups for current or specified environment[s].
-            Use --env=* for all environments
-            """
-            for app_env in self.envs_from_string(env):
-                data = self.create_target_groups(app_env)
-                ctx.info('Created target groups for the load balancer {}:'.format(self.get_balancer_name(app_env)))
+            if not self.balancer_exists():
+                data = self.create_balancer()
+                ctx.info('Successfully created load balancer {}:'.format(self.get_balancer_name()))
                 ctx.pp.pprint(data)
-
-        @task(iterable=['env'])
-        def delete_target_groups(ctx, env=None):
-            """
-            Creates load balancer target groups for current or specified environment[s].
-            Use --env=* for all environments
-            """
-            for app_env in self.envs_from_string(env):
-                self.delete_target_groups(app_env)
-                ctx.info('Deleted target groups for the load balancer {}:'.format(self.get_balancer_name(app_env)))
-
-        @task(iterable=['env'])
-        def describe_target_groups(ctx, env=None):
-            """
-            Describes target groups for current or specified environment[s].
-            Use --env=* for all environments
-            """
-            for app_env in self.envs_from_string(env):
-                data = self.get_target_groups_info(app_env)
-                ctx.info('Target groups details for load balancer {}:'.format(self.get_balancer_name(app_env)))
-                ctx.pp.pprint(data)
-
-        @task(iterable=['env'])
-        def create_listeners(ctx, env=None):
-            """
-            Creates listeners between load balancer and target groups for current or specified environment[s].
-            Use --env=* for all environments
-            """
-            for app_env in self.envs_from_string(env):
-                data = self.create_listeners(app_env)
-                ctx.info('Created listeners for load balancer {}:'.format(
-                    self.get_balancer_name(app_env)
+            else:
+                ctx.info('Load balancer {} already exists, nothing to create.'.format(
+                    self.get_balancer_name()
                 ))
+
+        @task
+        def delete_balancer(ctx):
+            """
+            Deletes balancer for current environment.
+            """
+            if self.balancer_exists():
+                self.delete_balancer()
+                ctx.info('Successfully deleted load balancer {}:'.format(self.get_balancer_name()))
+            else:
+                ctx.info('Load balancer {} does not exist, nothing to delete.'.format(
+                    self.get_balancer_name()
+                    ))
+
+        @task
+        def describe_balancer(ctx):
+            """
+            Describes balancer for current environment.
+            """
+            data = self.get_balancer_info()
+            if data is not None:
+                ctx.info('Load balancer {} details:'.format(self.get_balancer_name()))
                 ctx.pp.pprint(data)
+            else:
+                ctx.info('Load balancer {} does not exist.'.format(self.get_balancer_name()))
 
-        @task(iterable=['env'])
-        def delete_listeners(ctx, env=None):
+        @task
+        def create_target_groups(ctx):
             """
-            Deletes listeners for current or specified environment[s].
-            Use --env=* for all environments
+            Creates load balancer target groups for current environment.
             """
-            for app_env in self.envs_from_string(env):
-                if self.balancer_exists(app_env):
-                    self.delete_listeners(app_env)
-                    ctx.info('Deleted all listeners for load balancer {}:'.format(self.get_balancer_name(app_env)))
-                else:
-                    ctx.info('Load balancer {} does not exist, no listeners to remove.'.format(self.get_balancer_name(app_env)))
+            data = self.create_target_groups()
+            ctx.info('Created target groups for the load balancer {}:'.format(self.get_balancer_name()))
+            ctx.pp.pprint(data)
 
-        @task(iterable=['env'])
-        def describe_listeners(ctx, env=None):
+        @task
+        def delete_target_groups(ctx):
             """
-            Describes listeners for current or specified environment[s].
-            Use --env=* for all environments
+            Creates load balancer target groups for current environment.
             """
-            for app_env in self.envs_from_string(env):
-                data = self.describe_listeners(app_env)
-                ctx.info('Listeners details for load balancer {}:'.format(self.get_balancer_name(app_env)))
-                ctx.pp.pprint(data)
+            self.delete_target_groups()
+            ctx.info('Deleted target groups for the load balancer {}:'.format(self.get_balancer_name()))
 
-        @task(iterable=['env'])
-        def create(ctx, env=None):
+        @task
+        def describe_target_groups(ctx):
+            """
+            Describes target groups for current environment.
+            """
+            data = self.get_target_groups_info()
+            ctx.info('Target groups details for load balancer {}:'.format(self.get_balancer_name()))
+            ctx.pp.pprint(data)
+
+        @task
+        def create_listeners(ctx):
+            """
+            Creates listeners between load balancer and target groups for current environment.
+            """
+            data = self.create_listeners()
+            ctx.info('Created listeners for load balancer {}:'.format(
+                self.get_balancer_name()
+            ))
+            ctx.pp.pprint(data)
+
+        @task
+        def delete_listeners(ctx):
+            """
+            Deletes listeners for current environment.
+            """
+            if self.balancer_exists():
+                self.delete_listeners()
+                ctx.info('Deleted all listeners for load balancer {}:'.format(self.get_balancer_name()))
+            else:
+                ctx.info('Load balancer {} does not exist, no listeners to remove.'.format(self.get_balancer_name()))
+
+        @task
+        def describe_listeners(ctx):
+            """
+            Describes listeners for current environment.
+            """
+            data = self.describe_listeners()
+            ctx.info('Listeners details for load balancer {}:'.format(self.get_balancer_name()))
+            ctx.pp.pprint(data)
+
+        @task
+        def create(ctx):
             """Creates fully operational load balancer setup for the current environment."""
-            create_target_groups(ctx, env)
-            create_balancer(ctx, env)
-            create_listeners(ctx, env)
+            create_target_groups(ctx)
+            create_balancer(ctx)
+            create_listeners(ctx)
 
             ctx.info('Load balancers setup completed.')
 
-        @task(iterable=['env'])
-        def delete(ctx, env=None):
+        @task
+        def delete(ctx):
             """Deletes load balancer for current environment and all related resources."""
-            delete_listeners(ctx, env)
-            delete_balancer(ctx, env)
-            delete_target_groups(ctx, env)
+            delete_listeners(ctx)
+            delete_balancer(ctx)
+            delete_target_groups(ctx)
 
             ctx.info('Load balancers deletion completed.')
 
-        @task(iterable=['env'])
-        def reset(ctx, env=None):
+        @task
+        def reset(ctx):
             """Resets load balancer setup for the current environment."""
-            delete(ctx, env)
-            create(ctx, env)
+            delete(ctx)
+            create(ctx)
 
             ctx.info('Load balancers reset completed.')
+
+        @task
+        def describe(ctx):
+            describe_balancer(ctx)
+            describe_target_groups(ctx)
+            describe_listeners(ctx)
 
         return [
             create_balancer, delete_balancer, describe_balancer,
             create_target_groups, delete_target_groups, describe_target_groups,
             create_listeners, delete_listeners, describe_listeners,
-            create, delete, reset,
+            create, delete, reset, describe,
         ]
 
 

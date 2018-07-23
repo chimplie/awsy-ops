@@ -10,18 +10,29 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
     name = 'aws_ec2'
     dependencies = ['aws', 'aws_envs']
     service_name = 'ec2'
-    required_keys = ['vpc_name', 'availability_zone_azs']
+    required_keys = ['vpc_name', 'availability_zone_azs', 'security_groups']
 
-    def get_security_group_name(self, env=None):
+    def get_security_group_names(self):
         """
-        Returns security group name.
-        :param env: str | None environment name
+        Returns short names for security groups.
+        :return: str security groups short names
+        """
+        return list(self.config['security_groups'].keys())
+
+    def get_security_group_full_name(self, group_name):
+        """
+        Returns security group full name.
+        :param group_name: str group short name
         :return: str security group name
         """
-        return '{}-{}'.format(
+        base = '{}-{}'.format(
             self.get_aws_project_name(),
-            env or self.get_current_env()
+            self.get_current_env()
         )
+        if group_name == 'default':
+            return base
+        else:
+            return f'{base}-{group_name}'
 
     def get_vpc_id(self):
         """
@@ -40,15 +51,24 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
 
         return response['Vpcs'][0]['VpcId']
 
+    def get_security_group_config(self, group_name):
+        """
+        Returns security group config
+        :param group_name: str group short name
+        :return: dict config
+        """
+        return self.config['security_groups'][group_name]
+
     def get_security_group_info(self, group_name=None):
         """
         Returns security group details or None if group with specified name does not exist.
-        :param group_name: str security group name
+        :param group_name: str security group short name
         :return: dict | None security group info or None
         """
+        full_name = self.get_security_group_full_name(group_name)
         try:
             response = self.client.describe_security_groups(
-                GroupNames=[group_name],
+                GroupNames=[full_name],
                 Filters=[
                     {
                         'Name': 'vpc-id',
@@ -58,7 +78,7 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
             )
             assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
-            matching_groups = [group for group in response['SecurityGroups'] if group['GroupName'] == group_name]
+            matching_groups = [group for group in response['SecurityGroups'] if group['GroupName'] == full_name]
 
             return matching_groups[0]
         except ClientError:
@@ -67,7 +87,7 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
     def get_security_group_id(self, group_name):
         """
         Returns security group ID or None if group with the specified name does not exist.
-        :param group_name: str security group name
+        :param group_name: str security group short name
         :return: str | None group ID or None
         """
         security_group_info = self.get_security_group_info(group_name)
@@ -79,7 +99,7 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
     def security_group_exists(self, group_name):
         """
         Returns whether security group with the specified name exists.
-        :param group_name: str group name
+        :param group_name: str group short name
         :return: bool whether group exists or not
         """
         return self.get_security_group_info(group_name) is not None
@@ -87,45 +107,51 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
     def create_security_group(self, group_name):
         """
         Creates default security group for the specified name.
-        :param group_name: str security group name
+        :param group_name: str security group short name
         :return: str security group id
         """
+        vpc_id = self.get_vpc_id()
+        full_name = self.get_security_group_full_name(group_name)
+
         response = self.client.create_security_group(
-            GroupName=group_name,
-            Description='Default security group {}.'.format(self.get_security_group_name()),
-            VpcId=self.get_vpc_id()
+            GroupName=full_name,
+            Description='Security group {name} for {env} environment.'.format(
+                name=group_name,
+                env=self.get_current_env()
+            ),
+            VpcId=vpc_id
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         security_group_id = response['GroupId']
 
-        self.logger.info('Security Group Created {group} in vpc {vpc}.'.format(
-            group=security_group_id,
-            vpc=self.get_vpc_id(),
-        ))
+        self.logger.info(f'Security group "{full_name}" (ID={security_group_id}) created in vpc {vpc_id}.')
 
+        config = self.get_security_group_config(group_name)
         ingress_response = self.client.authorize_security_group_ingress(
             GroupId=security_group_id,
-            IpPermissions=[
-                {
-                    'IpProtocol': 'tcp',
-                    'FromPort': 80,
-                    'ToPort': 80,
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
-                },
-                {
-                    'IpProtocol': 'tcp',
-                    'FromPort': 22,
-                    'ToPort': 22,
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
-                },
-                {
-                    'IpProtocol': 'tcp',
-                    'FromPort': 30001,
-                    'ToPort': 60000,
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
-                },
-            ])
+            IpPermissions=config['ip_permissions'])
         assert ingress_response['ResponseMetadata']['HTTPStatusCode'] == 200
+
+        for target_config in config.get('attach_to', []).values():
+            auth_response = self.client.authorize_security_group_ingress(
+                GroupId=target_config['target_group']['id'],
+                IpPermissions=[
+                    {
+                        **target_config['ip_permission'],
+                        'UserIdGroupPairs': [
+                            {
+                                'GroupId': security_group_id,
+                            }
+                        ],
+                    }
+                ],
+            )
+            assert auth_response['ResponseMetadata']['HTTPStatusCode'] == 200
+
+            self.logger.info('Security group {name} attached to {target_name}.'.format(
+                name=full_name,
+                target_name=target_config['target_group']['id'],
+            ))
 
         return security_group_id
 
@@ -214,54 +240,48 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
         return [subnet['SubnetId'] for subnet in self.get_availability_zones_subnets().values()]
 
     def get_tasks(self):
-        @task(iterable=['env'])
-        def create_security_group(ctx, env=None):
+        @task
+        def create_security_groups(ctx):
             """
-            Creates security group for current or specified environment[s].
-            Use --env=* for all environments
+            Creates security groups for current environment.
             """
-            for app_env in self.envs_from_string(env):
-                security_group_name = self.get_security_group_name(app_env)
+            for group_name in self.get_security_group_names():
+                full_name = self.get_security_group_full_name(group_name)
 
-                if not self.security_group_exists(security_group_name):
-                    security_group_id = self.create_security_group(security_group_name)
-                    ctx.info('Security group "{name}" (id) successfully created.'.format(
-                        name=security_group_name,
-                        id=security_group_id,
-                    ))
+                if not self.security_group_exists(group_name):
+                    security_group_id = self.create_security_group(group_name)
+                    ctx.info(f'Security group "{full_name}" ({security_group_id}) successfully created.')
                 else:
-                    ctx.info('Security group "{}" already exists, nothing to create.'.format(security_group_name))
+                    ctx.info(f'Security group "{full_name}" already exists, nothing to create.')
 
-        @task(iterable=['env'])
-        def describe_security_group(ctx, env=None):
+        @task
+        def describe_security_groups(ctx):
             """
-            Describes security group for current or specified environment[s].
-            Use --env=* for all environments
+            Describes security groups for current environment.
             """
-            for app_env in self.envs_from_string(env):
-                security_group_name = self.get_security_group_name(app_env)
-                security_group_info = self.get_security_group_info(security_group_name)
+            for group_name in self.get_security_group_names():
+                security_group_info = self.get_security_group_info(group_name)
+                full_name = self.get_security_group_full_name(group_name)
 
                 if security_group_info is not None:
-                    ctx.info('Security group "{}":'.format(security_group_name))
+                    ctx.info(f'Security group "{full_name}":')
                     ctx.pp.pprint(security_group_info)
                 else:
-                    ctx.info('Security group "{}" does not exists.'.format(security_group_name))
+                    ctx.info(f'Security group "{full_name}" does not exists.')
 
-        @task(iterable=['env'])
-        def delete_security_group(ctx, env=None):
+        @task
+        def delete_security_groups(ctx):
             """
-            Deletes security group for current or specified environment[s].
-            Use --env=* for all environments
+            Deletes security groups for current environment.
             """
-            for app_env in self.envs_from_string(env):
-                security_group_name = self.get_security_group_name(app_env)
+            for group_name in self.get_security_group_names():
+                full_name = self.get_security_group_full_name(group_name)
 
-                if self.security_group_exists(security_group_name):
-                    self.delete_security_group(security_group_name)
-                    ctx.info('Security group "{}" successfully deleted.'.format(security_group_name))
+                if self.security_group_exists(group_name):
+                    self.delete_security_group(group_name)
+                    ctx.info(f'Security group "{full_name}" successfully deleted.')
                 else:
-                    ctx.info('Security group "{}" does not exists, nothing to delete.'.format(security_group_name))
+                    ctx.info(f'Security group "{full_name}" does not exists, nothing to delete.')
 
         @task
         def describe_availability_zones(ctx):
@@ -285,17 +305,14 @@ class AwsEc2Plugin(AwsServicePlugin, AwsEnvsPluginMixin):
             ctx.pp.pprint(data)
 
         return [
-            create_security_group, describe_security_group, delete_security_group,
+            create_security_groups, describe_security_groups, delete_security_groups,
             describe_availability_zones, describe_all_subnets, list_subnets,
         ]
 
 
 class AwsEc2PluginMixin:
-    def get_security_group_name(self, env=None):
-        return self.app.plugins['aws_ec2'].get_security_group_name(env)
-
-    def get_security_group_id(self, env=None):
-        return self.app.plugins['aws_ec2'].get_security_group_id(self.get_security_group_name(env))
+    def get_security_group_id(self, group_name):
+        return self.app.plugins['aws_ec2'].get_security_group_id(group_name)
 
     def get_subnet_ids(self):
         return self.app.plugins['aws_ec2'].get_subnet_ids()

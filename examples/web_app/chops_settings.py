@@ -145,6 +145,43 @@ SETTINGS['aws_ec2'] = {
     'availability_zone_azs': [
         'a', 'b',
     ],
+    'security_groups': {
+        'default': {
+            'ip_permissions': [
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 80,
+                    'ToPort': 80,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 22,
+                    'ToPort': 22,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 30001,
+                    'ToPort': 60000,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
+                },
+            ],
+            'attach_to': {
+                'db': {
+                    'target_group': {
+                        'id': 'sg-c78345b7',
+                        'name': 'default',
+                    },
+                    'ip_permission': {
+                        'FromPort': 5432,
+                        'ToPort': 5432,
+                        'IpProtocol': 'tcp',
+                    },
+                }
+            },
+        },
+    },
 }
 
 SETTINGS['aws_elb'] = {
@@ -155,6 +192,7 @@ SETTINGS['aws_elb'] = {
             'Protocol': 'HTTP',
         },
     },
+    'security_group': 'default',
 }
 
 SETTINGS['aws_ecs'] = {
