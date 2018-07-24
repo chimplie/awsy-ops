@@ -92,7 +92,7 @@ SETTINGS['plugins'] = [
 
 SETTINGS['dotenv'] = {
     'dotenv_files': os.path.join(SETTINGS['project_path'], '.env'),
-    'symlinks': [],
+    'symlink_paths': [],
     'template': os.path.join(chops.utils.PLUGINS_PATH, 'dotenv', 'env.template'),
     'template_lock': os.path.join(SETTINGS['project_path'], 'env.template.lock'),
 }

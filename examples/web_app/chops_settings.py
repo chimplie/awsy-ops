@@ -227,6 +227,9 @@ SETTINGS['aws_ecs'] = {
                 },
             },
             'volumes': [],
+            'config': {
+                'cpu': '1 vCPU'
+            },
         },
     },
     'services': {

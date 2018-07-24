@@ -129,6 +129,18 @@ class AwsEcsPlugin(AwsEnvBoundServicePlugin,
         """
         return self.get_task_definition(task_name).get('volumes', [])
 
+    def get_task_config(self, task_name):
+        """
+        Returns the task definition config in addition to containers and volumes.
+        :param task_name: str task short name
+        :return: dict task config
+        """
+        config = self.get_task_definition(task_name).get('config', {}).copy()
+        for key in ['containersDefinitions', 'volumes']:
+            if key in config:
+                raise ValueError(f'Key "{key}" is not allowed in the task definition config.')
+        return config
+
     def get_cluster_prefix(self):
         """
         Returns cluster prefix
@@ -288,6 +300,7 @@ class AwsEcsPlugin(AwsEnvBoundServicePlugin,
             family=self.get_task_definition_name(task_name),
             containerDefinitions=self.get_containers(task_name),
             volumes=self.get_volumes(task_name),
+            **self.get_task_config(task_name),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         return response['taskDefinition']
