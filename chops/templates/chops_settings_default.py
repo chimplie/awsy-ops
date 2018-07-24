@@ -1,6 +1,6 @@
 import os
 
-import chops
+import chops.entry_point
 
 
 HERE = os.path.abspath(os.path.dirname(__file__))

@@ -1,4 +1,5 @@
 import os
+import sys
 
 from chops import utils
 
@@ -25,6 +26,10 @@ def load_chops_settings(config):
 
     if settings_path is not None:
         config['is_initialised'] = True
+
+        # Add settings path directory to the system path,
+        # so, it will be able to import modules correctly
+        sys.path.insert(-1, os.path.dirname(settings_path))
 
         from importlib.machinery import SourceFileLoader
         mod = SourceFileLoader('chops.settings', settings_path).load_module()

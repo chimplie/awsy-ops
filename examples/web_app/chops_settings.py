@@ -1,5 +1,7 @@
 import os
 
+import chops.entry_point
+
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 SETTINGS = dict()
