@@ -1,4 +1,5 @@
 from invoke import task
+from invoke.exceptions import UnexpectedExit
 
 from chops.plugins.aws.aws_service_plugin import AwsServicePlugin
 from chops.plugins.docker import DockerPluginMixin
@@ -121,6 +122,24 @@ class AwsEcrPlugin(AwsServicePlugin, DockerPluginMixin):
                     ))
 
         @task
+        def pull(ctx):
+            """Pulls latest Docker images from the AWS ECR registry."""
+            ctx.info('Pull latest Docker images from the AWS ECR registry.')
+
+            repositories = self.describe_repositories()
+
+            for service_name in self.config['services']:
+                for docker_tag in [self.get_docker_tag(), 'latest']:
+                    service_path = self.get_service_path(service_name)
+                    repo_uri = repositories[service_path]['repositoryUri']
+
+                    ctx.info(f'Pulling Docker image of "{repo_uri}:{docker_tag}" from the AWS ECR registry.')
+                    try:
+                        ctx.run(f'docker pull {repo_uri}:{docker_tag}')
+                    except UnexpectedExit:
+                        ctx.info(f'Docker image "{repo_uri}:{docker_tag}" is missing in the AWS ECR registry.')
+
+        @task
         def push(ctx):
             """Pushes Docker images to AWS ECR registry."""
             ctx.info('Push Docker images to AWS ECR registry.')
@@ -132,21 +151,20 @@ class AwsEcrPlugin(AwsServicePlugin, DockerPluginMixin):
                     service_path = self.get_service_path(service_name)
                     repo_uri = repositories[service_path]['repositoryUri']
 
-                    ctx.info('Push Docker image of "{repo_uri}:{docker_tag}" to AWS ECR registry.'.format(
-                        repo_uri=repo_uri, docker_tag=docker_tag
-                    ))
-
-                    ctx.run('docker push {repo_uri}:{docker_tag}'.format(
-                        repo_uri=repo_uri,
-                        docker_tag=docker_tag
-                    ))
+                    ctx.info(f'Push Docker image of "{repo_uri}:{docker_tag}" to AWS ECR registry.')
+                    ctx.run(f'docker push {repo_uri}:{docker_tag}')
 
         @task(login, tag, push)
         def publish(ctx):
             """Logins to AWS ECR registry, tags and pushes Docker containers."""
             ctx.info('Successfully published all images to AWS Elastic Container Registry.')
 
-        return [create, describe, login, tag, push, publish]
+        @task(login, pull)
+        def sync(ctx):
+            """Logins to AWS ECR registry, and pulls latest Docker containers."""
+            ctx.info('Successfully synced all latest images with AWS Elastic Container Registry.')
+
+        return [create, describe, login, tag, push, pull, publish, sync]
 
 
 class AwsEcrPluginMixin:
