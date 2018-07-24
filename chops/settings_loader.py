@@ -1,6 +1,8 @@
 import os
 import sys
 
+from dotenv import load_dotenv
+
 from chops import utils
 
 
@@ -26,10 +28,16 @@ def load_chops_settings(config):
 
     if settings_path is not None:
         config['is_initialised'] = True
+        project_root = os.path.dirname(settings_path)
+        dotenv_path = os.path.join(project_root, '.env')
 
         # Add settings path directory to the system path,
         # so, it will be able to import modules correctly
-        sys.path.insert(-1, os.path.dirname(settings_path))
+        sys.path.insert(-1, project_root)
+
+        # Load .env file at the root of the project
+        if os.path.exists(dotenv_path):
+            load_dotenv(dotenv_path)
 
         from importlib.machinery import SourceFileLoader
         mod = SourceFileLoader('chops.settings', settings_path).load_module()

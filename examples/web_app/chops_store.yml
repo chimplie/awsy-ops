@@ -3,4 +3,4 @@ aws_ebt:
   environments:
     prod: {name: chopsexamplewebapp-prod-611601d9}
 installed_plugins: [dotenv, docker, aws, aws_envs, aws_ssm, aws_ecr, aws_ebt, aws_ecs,
-  aws_s3, aws_logs, aws_ec2, aws_elb, aws_app_scale, local]
+  aws_s3, aws_logs, aws_ec2, aws_elb, aws_app_scale, local, aws_ec2_scale]
