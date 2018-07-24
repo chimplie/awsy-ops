@@ -46,6 +46,10 @@ class DotEnvPlugin(chops.core.Plugin):
 
     def ensure_paths(self):
         dotenv_path = self.config['dotenv_file']
+
+        if not os.path.exists(dotenv_path):
+            return
+
         for symlink_path in self.config.get('symlink_paths', []):
             if not os.path.exists(symlink_path):
                 os.symlink(dotenv_path, symlink_path)
