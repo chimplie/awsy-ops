@@ -38,6 +38,9 @@ class DotEnvPlugin(chops.core.Plugin):
         self.ensure_paths()
 
     def check_template_integrity(self):
+        if not os.path.exists(self.config['template']) or not os.path.exists(self.config['template_lock']):
+            return
+
         if not filecmp.cmp(self.config['template'], self.config['template_lock']):
             self.logger.error('Template file ({filename}) was changed during the last run!'.format(
                 filename=self.config['template']
