@@ -202,7 +202,7 @@ SETTINGS['aws_ecs'] = {
     'namespace': SETTINGS['aws']['project_name'],
     'task_definitions': {
         'Web': {
-            'containers': {
+            '__containers__': {
                 'apiserver': {
                     '__image__': 'apiserver',
                     'essential': True,
@@ -227,9 +227,7 @@ SETTINGS['aws_ecs'] = {
                 },
             },
             'volumes': [],
-            'config': {
-                'cpu': '1 vCPU'
-            },
+            'cpu': '1 vCPU',
         },
     },
     'services': {
@@ -245,7 +243,7 @@ SETTINGS['aws_ecs'] = {
         'prod': {
             'task_definitions': {
                 'Web': {
-                    'containers': {
+                    '__containers__': {
                         'apiserver': {
                             'memory': 250,
                         },

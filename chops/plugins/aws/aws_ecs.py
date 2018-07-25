@@ -1,3 +1,4 @@
+from copy import deepcopy
 import time
 
 from invoke import task
@@ -37,20 +38,31 @@ class AwsEcsPlugin(AwsEnvBoundServicePlugin,
     def get_task_definition(self, task_name):
         """
         Returns task definition config specific to the current environment.
+        Processes container definition.
         :param task_name: str task short name
         :return: dict task definition
         """
-        return self.config['task_definitions'][task_name]
+        task_config = deepcopy(self.config['task_definitions'][task_name])
 
-    def get_containers(self, task_name):
+        task_config['containersDefinitions'] = self.process_container_definitions(
+            task_config['__containers__']
+        )
+        del task_config['__containers__']
+
+        if 'family' in task_config:
+            raise ValueError(f'Key "family" does not allowed in ECS task definition for Chops.')
+
+        task_config['family'] = self.get_task_definition_name(task_name)
+
+        return task_config
+
+    def process_container_definitions(self, containers):
         """
         Returns container definitions for the specified task
-        :param task_name: str task name
+        :param containers: (dict[]) container definitions to process
         :return: dict[] container definitions
         """
         env = self.get_current_env()
-        task_config = self.get_task_definition(task_name)
-        containers = task_config['containers']
 
         for container_name, container in containers.items():
             if 'image' not in container:
@@ -120,26 +132,6 @@ class AwsEcsPlugin(AwsEnvBoundServicePlugin,
                                 get_access_hosts.add(section[key])
 
         return list(get_access_hosts)
-
-    def get_volumes(self, task_name):
-        """
-        Returns the list of the task's defined volumes or the empty list.
-        :param task_name: str task short name
-        :return: dict[] list of volumes
-        """
-        return self.get_task_definition(task_name).get('volumes', [])
-
-    def get_task_config(self, task_name):
-        """
-        Returns the task definition config in addition to containers and volumes.
-        :param task_name: str task short name
-        :return: dict task config
-        """
-        config = self.get_task_definition(task_name).get('config', {}).copy()
-        for key in ['containersDefinitions', 'volumes']:
-            if key in config:
-                raise ValueError(f'Key "{key}" is not allowed in the task definition config.')
-        return config
 
     def get_cluster_prefix(self):
         """
@@ -297,10 +289,7 @@ class AwsEcsPlugin(AwsEnvBoundServicePlugin,
         :return: dict created task definition
         """
         response = self.client.register_task_definition(
-            family=self.get_task_definition_name(task_name),
-            containerDefinitions=self.get_containers(task_name),
-            volumes=self.get_volumes(task_name),
-            **self.get_task_config(task_name),
+            **self.get_task_definition(task_name),
         )
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         return response['taskDefinition']
