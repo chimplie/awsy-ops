@@ -44,7 +44,7 @@ class AwsEcsPlugin(AwsEnvBoundServicePlugin,
         """
         task_config = deepcopy(self.config['task_definitions'][task_name])
 
-        task_config['containersDefinitions'] = self.process_container_definitions(
+        task_config['containerDefinitions'] = self.process_container_definitions(
             task_config['__containers__']
         )
         del task_config['__containers__']
