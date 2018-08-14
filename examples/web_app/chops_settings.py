@@ -159,6 +159,12 @@ SETTINGS['aws_ec2'] = {
                 },
                 {
                     'IpProtocol': 'tcp',
+                    'FromPort': 443,
+                    'ToPort': 443,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
+                },
+                {
+                    'IpProtocol': 'tcp',
                     'FromPort': 22,
                     'ToPort': 22,
                     'IpRanges': [{'CidrIp': '0.0.0.0/0'}],
